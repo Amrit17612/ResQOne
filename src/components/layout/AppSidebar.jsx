@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -10,13 +10,24 @@ import {
   X,
 } from 'lucide-react';
 import Logo from '../common/Logo';
+import notificationService from '../../services/notificationService';
 
 export default function AppSidebar({ onClose }) {
+  const [unreadCount, setUnreadCount] = useState(3);
+
+  useEffect(() => {
+    const unsubscribe = notificationService.subscribe((list) => {
+      const counts = notificationService.getSummaryCounts(list);
+      setUnreadCount(counts.unread);
+    });
+    return () => unsubscribe();
+  }, []);
+
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Report Emergency', path: '/report', icon: ShieldAlert },
     { name: 'My Incidents', path: '/incidents', icon: FileText },
-    { name: 'Notifications', path: '/notifications', icon: Bell, badge: 3 },
+    { name: 'Notifications', path: '/notifications', icon: Bell, badge: unreadCount > 0 ? unreadCount : undefined },
     { name: 'Profile', path: '/profile', icon: User },
   ];
 

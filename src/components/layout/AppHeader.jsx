@@ -1,8 +1,18 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, Bell, User } from 'lucide-react';
+import notificationService from '../../services/notificationService';
 
 export default function AppHeader({ onMenuClick, title, subtitle }) {
+  const [unreadCount, setUnreadCount] = useState(3);
+
+  useEffect(() => {
+    const unsubscribe = notificationService.subscribe((list) => {
+      const counts = notificationService.getSummaryCounts(list);
+      setUnreadCount(counts.unread);
+    });
+    return () => unsubscribe();
+  }, []);
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
       {/* Left: Mobile Toggle & Page Title */}
@@ -39,7 +49,9 @@ export default function AppHeader({ onMenuClick, title, subtitle }) {
           aria-label="View notifications"
         >
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-600 rounded-full ring-2 ring-white" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-600 rounded-full ring-2 ring-white" />
+          )}
         </Link>
 
         {/* User Profile Pill (matching Rohan Singh / Citizen from mockup) */}

@@ -16,10 +16,8 @@ import DashboardPage from './pages/DashboardPage';
 import ReportEmergencyPage from './pages/ReportEmergencyPage';
 import MyIncidentsPage from './pages/MyIncidentsPage';
 import IncidentDetailsPage from './pages/IncidentDetailsPage';
-import {
-  ProfilePlaceholder,
-  NotificationsPlaceholder,
-} from './pages/AppPlaceholders';
+import ProfilePage from './pages/ProfilePage';
+import NotificationsPage from './pages/NotificationsPage';
 
 // Interactive Design System Showcase
 import DesignSystemPage from './pages/DesignSystemPage';
@@ -44,8 +42,8 @@ export default function App() {
           <Route path="/report" element={<ReportEmergencyPage />} />
           <Route path="/incidents" element={<MyIncidentsPage />} />
           <Route path="/incidents/:id" element={<IncidentDetailsPage />} />
-          <Route path="/profile" element={<ProfilePlaceholder />} />
-          <Route path="/notifications" element={<NotificationsPlaceholder />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/design-system" element={<DesignSystemPage />} />
         </Route>
 
