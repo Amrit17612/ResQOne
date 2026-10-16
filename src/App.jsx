@@ -11,9 +11,9 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import NotFoundPage from './pages/NotFoundPage';
 
-// Authenticated Application Placeholders
+// Authenticated Application Pages
+import DashboardPage from './pages/DashboardPage';
 import {
-  DashboardPlaceholder,
   ReportEmergencyPlaceholder,
   MyIncidentsPlaceholder,
   IncidentDetailsPlaceholder,
@@ -40,7 +40,7 @@ export default function App() {
 
         {/* Authenticated Citizen App Routes (Shared Deep Navy Sidebar & Header) */}
         <Route element={<AppLayout />}>
-          <Route path="/dashboard" element={<DashboardPlaceholder />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/report" element={<ReportEmergencyPlaceholder />} />
           <Route path="/incidents" element={<MyIncidentsPlaceholder />} />
           <Route path="/incidents/:id" element={<IncidentDetailsPlaceholder />} />

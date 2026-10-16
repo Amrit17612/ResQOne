@@ -14,43 +14,6 @@ import Card, { CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 
-export function DashboardPlaceholder() {
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">Citizen Overview</h2>
-          <p className="text-xs text-slate-500">Scheduled for full implementation in Milestone 5</p>
-        </div>
-        <Link to="/design-system">
-          <Button variant="outline" size="sm" icon={Sparkles}>
-            View Design System
-          </Button>
-        </Link>
-      </div>
-
-      <Card>
-        <CardContent className="text-center py-12 space-y-3">
-          <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto">
-            <LayoutDashboard className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-semibold text-slate-900">Dashboard Layout Initialized</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            The authenticated sidebar, dynamic header, and routing are operational.
-            The emergency report hero banner, stat counter chips, recent incident feed, and safety tips will be built in <strong>Milestone 5</strong>.
-          </p>
-          <div className="pt-2 flex justify-center gap-3">
-            <Link to="/report">
-              <Button variant="primary" size="sm" icon={ShieldAlert}>
-                Preview Report Emergency Shell
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
 
 export function ReportEmergencyPlaceholder() {
   return (
