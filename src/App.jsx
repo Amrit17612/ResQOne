@@ -36,10 +36,10 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
-        {/* Authenticated Citizen App Routes (Shared Deep Navy Sidebar & Header) */}
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/report" element={<ReportEmergencyPage />} />
+          <Route path="/report-emergency" element={<ReportEmergencyPage />} />
           <Route path="/incidents" element={<MyIncidentsPage />} />
           <Route path="/incidents/:id" element={<IncidentDetailsPage />} />
           <Route path="/profile" element={<ProfilePage />} />

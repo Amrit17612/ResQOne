@@ -13,6 +13,7 @@ export default function AppLayout() {
       case '/dashboard':
         return { title: 'Dashboard', subtitle: 'Stay informed, stay safe.' };
       case '/report':
+      case '/report-emergency':
         return { title: 'Report an Emergency', subtitle: 'Provide accurate information to get faster help.' };
       case '/incidents':
         return { title: 'My Incidents', subtitle: 'Track the status of all your reported incidents.' };

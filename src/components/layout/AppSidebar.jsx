@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   ShieldAlert,
@@ -14,6 +14,7 @@ import notificationService from '../../services/notificationService';
 
 export default function AppSidebar({ onClose }) {
   const [unreadCount, setUnreadCount] = useState(3);
+  const location = useLocation();
 
   useEffect(() => {
     const unsubscribe = notificationService.subscribe((list) => {
@@ -57,13 +58,16 @@ export default function AppSidebar({ onClose }) {
               key={item.name}
               to={item.path}
               onClick={onClose}
-              className={({ isActive }) => `
-                flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors
-                ${isActive
-                  ? 'bg-red-600 text-white shadow-sm'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
-                }
-              `}
+              className={({ isActive }) => {
+                const isItemActive = isActive || (item.path === '/report' && location.pathname === '/report-emergency');
+                return `
+                  flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors
+                  ${isItemActive
+                    ? 'bg-red-600 text-white shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
+                  }
+                `;
+              }}
             >
               <div className="flex items-center space-x-3">
                 <Icon className="w-4 h-4 flex-shrink-0" />

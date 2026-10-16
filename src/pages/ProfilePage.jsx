@@ -40,15 +40,17 @@ export default function ProfilePage() {
   const [activeModal, setActiveModal] = useState(null); // 'password' | 'notifications' | 'privacy' | null
 
   useEffect(() => {
-    async function loadData() {
+    async function loadProfile() {
       const pRes = await profileService.getProfile();
       setProfile(pRes.data);
       setFormData(pRes.data);
-
-      const nRes = await notificationService.getNotifications();
-      setRecentNotifications(nRes.data.slice(0, 3));
     }
-    loadData();
+    loadProfile();
+
+    const unsubscribe = notificationService.subscribe((list) => {
+      setRecentNotifications(list.slice(0, 3));
+    });
+    return () => unsubscribe();
   }, []);
 
   if (!profile) {
