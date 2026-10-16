@@ -14,9 +14,9 @@ import NotFoundPage from './pages/NotFoundPage';
 // Authenticated Application Pages
 import DashboardPage from './pages/DashboardPage';
 import ReportEmergencyPage from './pages/ReportEmergencyPage';
+import MyIncidentsPage from './pages/MyIncidentsPage';
+import IncidentDetailsPage from './pages/IncidentDetailsPage';
 import {
-  MyIncidentsPlaceholder,
-  IncidentDetailsPlaceholder,
   ProfilePlaceholder,
   NotificationsPlaceholder,
 } from './pages/AppPlaceholders';
@@ -42,8 +42,8 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/report" element={<ReportEmergencyPage />} />
-          <Route path="/incidents" element={<MyIncidentsPlaceholder />} />
-          <Route path="/incidents/:id" element={<IncidentDetailsPlaceholder />} />
+          <Route path="/incidents" element={<MyIncidentsPage />} />
+          <Route path="/incidents/:id" element={<IncidentDetailsPage />} />
           <Route path="/profile" element={<ProfilePlaceholder />} />
           <Route path="/notifications" element={<NotificationsPlaceholder />} />
           <Route path="/design-system" element={<DesignSystemPage />} />

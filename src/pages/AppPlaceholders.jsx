@@ -14,52 +14,6 @@ import Card, { CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 
-
-
-export function MyIncidentsPlaceholder() {
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardContent className="text-center py-12 space-y-3">
-          <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto">
-            <FileText className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-semibold text-slate-900">Incident History &amp; Status Tracking</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            Filter tabs (All, In Progress, Resolved) and incident listing cards are scheduled for <strong>Milestone 7</strong>.
-          </p>
-          <div className="pt-2">
-            <Link to="/incidents/demo-1">
-              <Button variant="outline" size="sm" icon={ArrowRight} iconPosition="right">
-                View Incident Details Shell
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-export function IncidentDetailsPlaceholder() {
-  const { id } = useParams();
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardContent className="text-center py-12 space-y-3">
-          <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto">
-            <Clock className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-semibold text-slate-900">Incident Details (ID: {id || 'Demo'})</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            Full incident photo display, status timeline (Reported &rarr; Verified &rarr; Assigned &rarr; In Progress &rarr; Resolved), and map visualization will be built in <strong>Milestone 7</strong>.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 export function ProfilePlaceholder() {
   return (
     <div className="space-y-6">

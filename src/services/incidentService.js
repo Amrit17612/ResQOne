@@ -84,7 +84,7 @@ export const incidentService = {
    * @param {string} id
    */
   async getIncidentById(id) {
-    const incident = DEMO_INCIDENTS.find((item) => item.id === id) || DEMO_INCIDENTS[0];
+    const incident = DEMO_INCIDENTS.find((item) => item.id === id) || null;
     return {
       isDemo: true,
       data: incident,
