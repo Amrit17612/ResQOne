@@ -6,7 +6,7 @@ import PublicLayout from './layouts/PublicLayout';
 import AppLayout from './layouts/AppLayout';
 
 // Public & Auth Pages
-import LandingPlaceholder from './pages/LandingPlaceholder';
+import LandingPage from './pages/LandingPage';
 import { LoginPage, RegisterPage } from './pages/AuthPlaceholders';
 import NotFoundPage from './pages/NotFoundPage';
 
@@ -29,7 +29,7 @@ export default function App() {
       <Routes>
         {/* Public Visitor Routes */}
         <Route element={<PublicLayout />}>
-          <Route path="/" element={<LandingPlaceholder />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/404" element={<NotFoundPage />} />
         </Route>
 

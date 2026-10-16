@@ -15,6 +15,19 @@ export default function PublicNavbar() {
     { name: 'Contact', path: '/#contact' },
   ];
 
+  const handleNavClick = (path) => {
+    setMobileMenuOpen(false);
+    if (path.includes('#')) {
+      const id = path.split('#')[1];
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else if (path === '/') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -25,11 +38,12 @@ export default function PublicNavbar() {
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center space-x-8">
             {navLinks.map((link) => {
-              const isActive = location.pathname === link.path;
+              const isActive = location.pathname === link.path && !location.hash;
               return (
                 <Link
                   key={link.name}
                   to={link.path}
+                  onClick={() => handleNavClick(link.path)}
                   className={`text-sm font-medium transition-colors hover:text-red-600 ${
                     isActive ? 'text-red-600' : 'text-slate-600'
                   }`}
@@ -76,7 +90,7 @@ export default function PublicNavbar() {
               <Link
                 key={link.name}
                 to={link.path}
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={() => handleNavClick(link.path)}
                 className="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-red-600"
               >
                 {link.name}
