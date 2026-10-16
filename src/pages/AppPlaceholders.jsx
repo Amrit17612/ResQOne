@@ -15,28 +15,6 @@ import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 
 
-export function ReportEmergencyPlaceholder() {
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardContent className="text-center py-12 space-y-3">
-          <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto">
-            <ShieldAlert className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-semibold text-slate-900">Emergency Reporting Form</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            The 7-incident type selector grid, description textarea, location picker with GPS locator, and photo dropzone are scheduled for <strong>Milestone 6</strong>.
-          </p>
-          <div className="pt-2">
-            <Badge status="in-progress" size="md">
-              Scheduled: Milestone 6
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
 
 export function MyIncidentsPlaceholder() {
   return (

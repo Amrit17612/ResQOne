@@ -106,6 +106,31 @@ export const incidentService = {
 
     return { total, inProgress, resolved };
   },
+
+  /**
+   * Submit emergency incident report
+   * Encapsulates client-side submission logic for future backend API integration.
+   * @param {Object} reportData - { type, description, location, coordinates, file }
+   */
+  async submitIncidentReport(reportData) {
+    return {
+      status: 'pending_backend',
+      isDemo: true,
+      message: 'Report payload validated on client. Live dispatch connection pending backend API integration.',
+      data: {
+        id: `inc-demo-${Date.now()}`,
+        ...reportData,
+        status: 'Reported',
+        formattedDate: new Date().toLocaleString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      },
+    };
+  },
 };
 
 export default incidentService;
