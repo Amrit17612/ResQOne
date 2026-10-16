@@ -7,7 +7,8 @@ import AppLayout from './layouts/AppLayout';
 
 // Public & Auth Pages
 import LandingPage from './pages/LandingPage';
-import { LoginPage, RegisterPage } from './pages/AuthPlaceholders';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 // Authenticated Application Placeholders
