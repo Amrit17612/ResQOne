@@ -100,6 +100,26 @@ export const submitOrganizationApplication = async (req, res) => {
       ipAddress: req.ip
     });
 
+    // Send Instant Application Submission Confirmation Email to Applicant's Real Email
+    await sendSecurityEmail({
+      to: officialEmail,
+      subject: `ResQOne Application Received: ${newApp.applicationId}`,
+      text: `Dear ${authorizedPersonName},\n\nYour registration application for ${organizationName} has been successfully submitted to the ResQOne Emergency Grid.\n\nApplication ID: ${newApp.applicationId}\nStatus: SUBMITTED\n\nYou will receive real-time email updates as our central administration reviews your application.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; background: #0B132B; color: #ffffff; padding: 25px; border-radius: 10px; max-width: 600px;">
+          <h2 style="color: #38bdf8; margin-top: 0;">ResQOne Emergency Response Network</h2>
+          <p>Dear <strong>${authorizedPersonName}</strong>,</p>
+          <p>Thank you for registering <strong>${organizationName}</strong> (${organizationType}) on ResQOne.</p>
+          <div style="background: #1C2541; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #38bdf8;">
+            <p style="margin: 5px 0;"><strong>Application ID:</strong> <span style="color: #4ade80; font-family: monospace; font-size: 16px;">${newApp.applicationId}</span></p>
+            <p style="margin: 5px 0;"><strong>Status:</strong> <span style="color: #facc15; font-weight: bold;">APPLICATION_SUBMITTED</span></p>
+            <p style="margin: 5px 0;"><strong>Registered Location:</strong> ${formattedAddress || address}</p>
+          </div>
+          <p style="color: #94a3b8; font-size: 13px;">Our Central Administration is verifying your documents. You will receive automated real-time email notifications whenever your status changes.</p>
+        </div>
+      `
+    }).catch(err => console.error('[Submission Mailer Error Non-blocking]', err.message));
+
     return res.status(201).json({
       success: true,
       message: 'Organization onboarding application submitted successfully. Use OTP to track application status.',
