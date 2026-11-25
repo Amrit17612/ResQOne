@@ -38,7 +38,7 @@ export const DashboardLayout = ({ children, title, subtitle }) => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/citizen-auth');
   };
 
   // Filter links visible to the current role (or show all to demo if logged in)
@@ -140,7 +140,7 @@ export const DashboardLayout = ({ children, title, subtitle }) => {
             </div>
           ) : (
             <NavLink
-              to="/login"
+              to="/citizen-auth"
               className="w-full block text-center py-2 bg-resq-blue text-white text-xs font-semibold rounded-lg hover:bg-blue-600 transition"
             >
               Sign In to Command

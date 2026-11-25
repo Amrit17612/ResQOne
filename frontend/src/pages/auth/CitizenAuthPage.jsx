@@ -21,7 +21,7 @@ export const CitizenAuthPage = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { loginWithToken, setUser } = useAuth();
   const navigate = useNavigate();
 
   const handleInputChange = (field, value) => {
@@ -40,7 +40,12 @@ export const CitizenAuthPage = () => {
       });
 
       if (data.success) {
-        localStorage.setItem('resqone_token', data.token);
+        if (loginWithToken) {
+          loginWithToken(data.user, data.token);
+        } else {
+          localStorage.setItem('resqone_token', data.token);
+          if (setUser) setUser(data.user);
+        }
         navigate('/citizen');
       }
     } catch (err) {
@@ -86,11 +91,14 @@ export const CitizenAuthPage = () => {
       const { data } = await api.post('/auth/citizen/register', payload);
 
       if (data.success) {
-        localStorage.setItem('resqone_token', data.token);
-        setSuccessMsg('Account created successfully! Redirecting to Citizen Emergency Portal...');
-        setTimeout(() => {
-          navigate('/citizen');
-        }, 1200);
+        setSuccessMsg('Account created successfully! Please sign in with your credentials.');
+        // Switch directly to Login tab with pre-filled email and cleared password
+        setIsSignUp(false);
+        setFormData((prev) => ({
+          ...prev,
+          password: '',
+          confirmPassword: ''
+        }));
       }
     } catch (err) {
       const serverMsg = err.response?.data?.errors?.join(', ') || err.response?.data?.message || 'Registration failed';

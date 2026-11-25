@@ -109,6 +109,7 @@ export const CitizenPortal = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  const [offlineDrafts, setOfflineDrafts] = useState([]);
 
   useEffect(() => {
     fetchHospitals();
