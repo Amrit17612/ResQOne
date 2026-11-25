@@ -21,10 +21,10 @@ export const RegisterOrganizationPage = () => {
     contactNumber: '',
     registrationNumber: '',
     address: '',
-    state: 'Delhi',
-    district: 'New Delhi',
-    city: 'New Delhi',
-    postalCode: '110001',
+    state: '',
+    district: '',
+    city: '',
+    postalCode: '',
     authorizedPersonName: '',
     authorizedPersonDesignation: '',
     supportingDocumentUrl: 'Document Upload Verified',
@@ -45,10 +45,13 @@ export const RegisterOrganizationPage = () => {
   };
 
   const handleLocationConfirmed = (locData) => {
-    // Attempt parsing city / state from address string if available
-    const parts = (locData.formattedAddress || '').split(',').map(s => s.trim());
-    const guessedCity = parts.length >= 3 ? parts[parts.length - 3] : prev => prev.city;
-    const guessedState = parts.length >= 2 ? parts[parts.length - 2] : prev => prev.state;
+    const details = locData.addressDetails || {};
+    
+    // Extract actual state, city/town/village, district, and postcode from OSM details
+    const resolvedState = details.state || '';
+    const resolvedDistrict = details.state_district || details.county || details.district || '';
+    const resolvedCity = details.city || details.town || details.village || details.suburb || details.municipality || '';
+    const resolvedPostcode = details.postcode ? String(details.postcode).replace(/\D/g, '').slice(0, 6) : '';
 
     setFormData((prev) => ({
       ...prev,
@@ -59,8 +62,10 @@ export const RegisterOrganizationPage = () => {
       locationAccuracy: locData.locationAccuracy,
       locationConfirmedByUser: true,
       address: locData.formattedAddress || prev.address,
-      city: typeof guessedCity === 'string' && guessedCity ? guessedCity : prev.city,
-      state: typeof guessedState === 'string' && guessedState ? guessedState : prev.state
+      state: resolvedState || prev.state,
+      district: resolvedDistrict || prev.district,
+      city: resolvedCity || prev.city,
+      postalCode: resolvedPostcode || prev.postalCode
     }));
   };
 

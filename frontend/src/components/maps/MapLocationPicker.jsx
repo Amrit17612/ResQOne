@@ -63,6 +63,8 @@ export default function MapLocationPicker({
   const [isSearching, setIsSearching] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const [addressDetails, setAddressDetails] = useState(null);
+
   const markerRef = useRef(null);
 
   // Reverse geocode via OSM Nominatim API
@@ -78,6 +80,9 @@ export default function MapLocationPicker({
         const data = await response.json();
         const display = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
         setAddress(display);
+        if (data.address) {
+          setAddressDetails(data.address);
+        }
         return display;
       }
     } catch (err) {
@@ -92,12 +97,14 @@ export default function MapLocationPicker({
 
   // Handle address text search
   const handleSearchAddress = async (e) => {
-    e.preventDefault();
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     setErrorMessage('');
     try {
-      // Freeform Nominatim query across India & world
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1`,
         { headers: { 'Accept-Language': 'en' } }
@@ -109,11 +116,14 @@ export default function MapLocationPicker({
         const lng = parseFloat(item.lon);
         setPosition([lat, lng]);
         setAddress(item.display_name);
+        if (item.address) {
+          setAddressDetails(item.address);
+        }
         setSource('MANUAL_PIN');
         setAccuracy(null);
         setIsConfirmed(false);
       } else {
-        setErrorMessage('Location not found. Please type City name or Pincode (e.g. Patna, Lucknow, Mumbai, 800001) or click on the map directly.');
+        setErrorMessage('Location not found. Try searching with a landmark, area, city or pincode.');
       }
     } catch (err) {
       setErrorMessage('Search service busy. You can directly click or drag the red pin anywhere on the map.');
@@ -174,7 +184,11 @@ export default function MapLocationPicker({
   };
 
   // Confirm Location Handler
-  const handleConfirmLocation = () => {
+  const handleConfirmLocation = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setIsConfirmed(true);
     if (onLocationConfirmed) {
       onLocationConfirmed({
@@ -183,6 +197,7 @@ export default function MapLocationPicker({
         formattedAddress: address,
         locationSource: source,
         locationAccuracy: accuracy,
+        addressDetails: addressDetails,
         isConfirmed: true
       });
     }
@@ -239,23 +254,31 @@ export default function MapLocationPicker({
 
       {/* Option 2: Search Address or Click Map */}
       <div className="mt-3">
-        <form onSubmit={handleSearchAddress} className="flex gap-2">
+        <div className="flex gap-2">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search address, landmark or hospital name to position pin..."
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSearchAddress(e);
+              }
+            }}
+            placeholder="Search address, landmark, city or pincode to position pin..."
             disabled={disabled}
             className="flex-1 bg-slate-950/80 border border-slate-700/80 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
           />
           <button
-            type="submit"
+            type="button"
+            onClick={handleSearchAddress}
             disabled={disabled || isSearching || !searchQuery.trim()}
             className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-medium text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
           >
             {isSearching ? 'Searching...' : 'Search Place'}
           </button>
-        </form>
+        </div>
       </div>
 
       {/* Interactive Leaflet Map Container */}
