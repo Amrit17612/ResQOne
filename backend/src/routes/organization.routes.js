@@ -7,7 +7,10 @@ import {
   getOrganizationApplications,
   updateApplicationStatus,
   generateOrganizationCredentials,
-  activateAccountWithToken
+  activateAccountWithToken,
+  updateOrganizationDetails,
+  toggleOrganizationSuspension,
+  deleteOrganization
 } from '../controllers/organization.controller.js';
 import { authenticate, authorize } from '../middleware/auth.middleware.js';
 import { validateBody } from '../middleware/validate.js';
@@ -63,6 +66,27 @@ router.post(
   authenticate,
   authorize([UserRole.SUPER_ADMIN]),
   generateOrganizationCredentials
+);
+
+router.put(
+  '/applications/:id/details',
+  authenticate,
+  authorize([UserRole.SUPER_ADMIN]),
+  updateOrganizationDetails
+);
+
+router.post(
+  '/applications/:id/toggle-suspension',
+  authenticate,
+  authorize([UserRole.SUPER_ADMIN]),
+  toggleOrganizationSuspension
+);
+
+router.delete(
+  '/applications/:id',
+  authenticate,
+  authorize([UserRole.SUPER_ADMIN]),
+  deleteOrganization
 );
 
 export default router;

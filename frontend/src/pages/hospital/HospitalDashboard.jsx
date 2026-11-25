@@ -156,26 +156,31 @@ export const HospitalDashboard = () => {
       subtitle="Critical Bed Quotas, Patient Transport Inflow & Scoped Hospital Staff Management"
     >
       <div className="space-y-6">
-        {/* Hospital Facility Header (Fixed badge for hospital coordinator, dropdown only for super admin) */}
+        {/* Hospital Facility Header (Fixed badge for hospital coordinator, selectable dropdown for super admin) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center space-x-3">
             <HospitalIcon className="w-5 h-5 text-teal-600" />
             <span className="text-xs font-bold uppercase text-slate-500">Active Hospital Facility:</span>
-            {user?.role === 'SUPER_ADMIN' && hospitals.length > 1 ? (
-              <select
-                value={selectedHospital?._id || ''}
-                onChange={(e) => {
-                  const h = hospitals.find((item) => item._id === e.target.value);
-                  setSelectedHospital(h);
-                }}
-                className="text-sm font-bold text-slate-800 bg-slate-50 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-teal-600 outline-none"
-              >
-                {hospitals.map((h) => (
-                  <option key={h._id} value={h._id}>
-                    {h.name} ({h.registrationNumber})
-                  </option>
-                ))}
-              </select>
+            {user?.role === 'SUPER_ADMIN' ? (
+              <div className="flex items-center space-x-2">
+                <select
+                  value={selectedHospital?._id || ''}
+                  onChange={(e) => {
+                    const h = hospitals.find((item) => item._id === e.target.value);
+                    setSelectedHospital(h);
+                  }}
+                  className="text-sm font-bold text-slate-800 bg-slate-50 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-teal-600 outline-none"
+                >
+                  {hospitals.map((h) => (
+                    <option key={h._id} value={h._id}>
+                      {h.name} ({h.registrationNumber})
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300 px-2 py-1 rounded">
+                  Super Admin View-Only (Read-Only Live Audit)
+                </span>
+              </div>
             ) : (
               <div className="flex items-center space-x-2 bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-lg">
                 <span className="text-sm font-black text-teal-900">
@@ -241,20 +246,26 @@ export const HospitalDashboard = () => {
 
                       <div className="pt-4 border-t border-slate-100 flex items-center justify-between mt-4">
                         <span className="text-[10px] uppercase font-bold text-slate-400">Occupancy</span>
-                        <div className="flex space-x-1">
-                          <button
-                            onClick={() => handleBedAdjust(cat, 'occupied', 1)}
-                            className="bg-red-50 hover:bg-red-100 text-red-600 font-bold w-7 h-7 rounded-lg text-xs"
-                          >
-                            +
-                          </button>
-                          <button
-                            onClick={() => handleBedAdjust(cat, 'occupied', -1)}
-                            className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold w-7 h-7 rounded-lg text-xs"
-                          >
-                            -
-                          </button>
-                        </div>
+                        {user?.role === 'SUPER_ADMIN' ? (
+                          <span className="text-[11px] font-semibold text-slate-400 italic">Hospital Controlled</span>
+                        ) : (
+                          <div className="flex space-x-1">
+                            <button
+                              onClick={() => handleBedAdjust(cat, 'occupied', 1)}
+                              className="bg-red-50 hover:bg-red-100 text-red-600 font-bold w-7 h-7 rounded-lg text-xs"
+                              title="Increase Occupied Bed"
+                            >
+                              +
+                            </button>
+                            <button
+                              onClick={() => handleBedAdjust(cat, 'occupied', -1)}
+                              className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold w-7 h-7 rounded-lg text-xs"
+                              title="Decrease Occupied Bed"
+                            >
+                              -
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

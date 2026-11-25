@@ -635,3 +635,121 @@ export const activateAccountWithToken = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * 7. Super Admin: Update Organization Details (Name, Registration, Signatory, Address)
+ */
+export const updateOrganizationDetails = async (req, res) => {
+  try {
+    const { organizationName, registrationNumber, authorizedPersonName, contactNumber, address } = req.body;
+    const application = await OrganizationApplication.findById(req.params.id);
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Organization application not found' });
+    }
+
+    if (organizationName) application.organizationName = organizationName.trim();
+    if (registrationNumber) application.registrationNumber = registrationNumber.trim();
+    if (authorizedPersonName) application.authorizedPersonName = authorizedPersonName.trim();
+    if (contactNumber) application.contactNumber = contactNumber.trim();
+    if (address) application.address = address.trim();
+
+    application.statusHistory.push({
+      status: application.status,
+      note: `Organization details updated by Super Admin (${req.user?.name || 'Super Admin'})`,
+      updatedBy: req.user?.name || 'Super Admin',
+      updatedAt: new Date()
+    });
+
+    await application.save();
+
+    // If attached to a Hospital record, synchronize hospital name and registration
+    if (application.organizationId) {
+      await Hospital.findByIdAndUpdate(application.organizationId, {
+        name: application.organizationName,
+        registrationNumber: application.registrationNumber,
+        address: application.address,
+        phone: application.contactNumber
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Organization details updated successfully.',
+      application
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * 8. Super Admin: Suspend or Reactivate Organization
+ */
+export const toggleOrganizationSuspension = async (req, res) => {
+  try {
+    const { suspend, reason } = req.body;
+    const application = await OrganizationApplication.findById(req.params.id);
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Organization not found' });
+    }
+
+    const newStatus = suspend ? OrganizationApplicationStatus.SUSPENDED : OrganizationApplicationStatus.APPROVED;
+    application.status = newStatus;
+    const note = reason || (suspend ? 'Organization suspended by Super Admin authority.' : 'Organization reinstated by Super Admin.');
+
+    application.statusHistory.push({
+      status: newStatus,
+      note,
+      updatedBy: req.user?.name || 'Super Admin',
+      updatedAt: new Date()
+    });
+
+    await application.save();
+
+    // Update user status
+    if (application.createdUserId) {
+      await User.findByIdAndUpdate(application.createdUserId, {
+        status: suspend ? 'SUSPENDED' : 'ACTIVE',
+        isActive: !suspend
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Organization ${suspend ? 'suspended' : 'reactivated'} successfully.`,
+      application
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * 9. Super Admin: Delete Organization Record
+ */
+export const deleteOrganization = async (req, res) => {
+  try {
+    const application = await OrganizationApplication.findById(req.params.id);
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Organization not found' });
+    }
+
+    // Delete linked hospital and user if any
+    if (application.organizationId) {
+      await Hospital.findByIdAndDelete(application.organizationId);
+    }
+    if (application.createdUserId) {
+      await User.findByIdAndDelete(application.createdUserId);
+    }
+    await OrganizationApplication.findByIdAndDelete(req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Organization and associated hospital records permanently deleted.'
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

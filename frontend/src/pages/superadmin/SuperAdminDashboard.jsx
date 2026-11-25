@@ -39,6 +39,14 @@ export const SuperAdminDashboard = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [requestInfoApp, setRequestInfoApp] = useState(null); // Dedicated Request Info modal
   const [infoQuery, setInfoQuery] = useState('');
+  const [editingApp, setEditingApp] = useState(null); // Dedicated Edit Details modal
+  const [editFormData, setEditFormData] = useState({
+    organizationName: '',
+    registrationNumber: '',
+    authorizedPersonName: '',
+    contactNumber: '',
+    address: ''
+  });
   const [actionLoading, setActionLoading] = useState(false);
   const [adminNoteInput, setAdminNoteInput] = useState('');
 
@@ -90,17 +98,64 @@ export const SuperAdminDashboard = () => {
     }
   };
 
-  const handleGenerateCredentials = async (appId) => {
+  const handleSaveEditDetails = async (e) => {
+    e.preventDefault();
+    if (!editingApp) return;
     setActionLoading(true);
     try {
-      const { data } = await api.post(`/organizations/applications/${appId}/generate-credentials`);
+      const { data } = await api.put(`/organizations/applications/${editingApp._id}/details`, editFormData);
       if (data.success) {
-        setGeneratedLink(data.activationLink);
-        alert('Credentials generated! Single-use activation link dispatched to official email.');
+        alert('Organization details successfully updated!');
+        setEditingApp(null);
         await fetchAdminData();
       }
-    } catch (e) {
-      alert(e.response?.data?.message || 'Error generating credentials');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error updating organization details');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleToggleSuspension = async (appId, currentStatus) => {
+    const isSuspended = currentStatus === 'SUSPENDED';
+    const actionText = isSuspended ? 'reactivate' : 'suspend / deactivate';
+    const confirmed = window.confirm(`Are you sure you want to ${actionText} this organization's access to ResQOne?`);
+    if (!confirmed) return;
+
+    setActionLoading(true);
+    try {
+      const { data } = await api.post(`/organizations/applications/${appId}/toggle-suspension`, {
+        suspend: !isSuspended,
+        reason: isSuspended ? 'Reactivated by Super Admin' : 'Deactivated by Super Admin authority'
+      });
+      if (data.success) {
+        alert(data.message);
+        await fetchAdminData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error updating suspension status');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteOrganization = async (appId, orgName) => {
+    const confirmation = window.prompt(`Type DELETE to permanently remove "${orgName}" from database and revoke all licenses:`);
+    if (confirmation !== 'DELETE') {
+      if (confirmation !== null) alert('Deletion cancelled: confirmation keyword did not match.');
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const { data } = await api.delete(`/organizations/applications/${appId}`);
+      if (data.success) {
+        alert('Organization permanently deleted from database.');
+        if (selectedApp?._id === appId) setSelectedApp(null);
+        await fetchAdminData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error deleting organization');
     } finally {
       setActionLoading(false);
     }
@@ -370,8 +425,50 @@ export const SuperAdminDashboard = () => {
                           </button>
                         )}
 
-                        {/* Reject Option with Dedicated Reason Modal */}
-                        {app.status !== 'APPROVED' && app.status !== 'ACTIVATION_PENDING' && app.status !== 'REJECTED' && (
+                        {/* Organization Already Approved / Active: Management Suite (Edit Name, Deactivate/Reactivate, Delete) */}
+                        {(app.status === 'APPROVED' || app.status === 'ACTIVATION_PENDING' || app.status === 'SUSPENDED' || app.status === 'SUCCESSFULLY_REGISTERED') && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              disabled={actionLoading}
+                              onClick={() => {
+                                setEditingApp(app);
+                                setEditFormData({
+                                  organizationName: app.organizationName || '',
+                                  registrationNumber: app.registrationNumber || '',
+                                  authorizedPersonName: app.authorizedPersonName || '',
+                                  contactNumber: app.contactNumber || '',
+                                  address: app.address || ''
+                                });
+                              }}
+                              className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3 py-1.5 rounded-lg border border-slate-300 flex items-center space-x-1"
+                            >
+                              <span>✏️ Edit Name/Details</span>
+                            </button>
+
+                            <button
+                              disabled={actionLoading}
+                              onClick={() => handleToggleSuspension(app._id, app.status)}
+                              className={`font-bold px-3 py-1.5 rounded-lg border ${
+                                app.status === 'SUSPENDED'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                                  : 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
+                              }`}
+                            >
+                              {app.status === 'SUSPENDED' ? '✓ Reactivate Organization' : '⏸️ Deactivate'}
+                            </button>
+
+                            <button
+                              disabled={actionLoading}
+                              onClick={() => handleDeleteOrganization(app._id, app.organizationName)}
+                              className="text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg font-bold border border-rose-200"
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Reject Option with Dedicated Reason Modal (ONLY for Pending Applications) */}
+                        {app.status !== 'APPROVED' && app.status !== 'ACTIVATION_PENDING' && app.status !== 'REJECTED' && app.status !== 'SUSPENDED' && app.status !== 'SUCCESSFULLY_REGISTERED' && (
                           <button
                             disabled={actionLoading}
                             onClick={() => {
@@ -797,6 +894,100 @@ export const SuperAdminDashboard = () => {
                   {actionLoading ? 'Dispatching...' : 'Send Information Request to Email'}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dedicated Edit Organization Details Modal */}
+        {editingApp && (
+          <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+              <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Building2 className="w-5 h-5 text-amber-400" />
+                  <h3 className="font-bold text-base">Edit Organization Details</h3>
+                </div>
+                <button
+                  onClick={() => setEditingApp(null)}
+                  className="text-slate-400 hover:text-white font-bold text-lg"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEditDetails} className="p-6 space-y-4 text-xs text-slate-700">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-800">Organization Name:</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.organizationName}
+                    onChange={(e) => setEditFormData({ ...editFormData, organizationName: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-800">Statutory License / Registration Number:</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.registrationNumber}
+                    onChange={(e) => setEditFormData({ ...editFormData, registrationNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-800">Authorized Representative / Signatory:</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.authorizedPersonName}
+                    onChange={(e) => setEditFormData({ ...editFormData, authorizedPersonName: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-800">Official Contact Number:</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.contactNumber}
+                    onChange={(e) => setEditFormData({ ...editFormData, contactNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-800">Physical Facility Address:</label>
+                  <textarea
+                    rows={2}
+                    required
+                    value={editFormData.address}
+                    onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+                  />
+                </div>
+
+                <div className="bg-slate-50 p-4 -mx-6 -mb-6 mt-4 border-t border-slate-200 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingApp(null)}
+                    className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-lg hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actionLoading}
+                    className="px-5 py-2 bg-resq-blue hover:bg-blue-600 text-white font-bold rounded-lg shadow-sm"
+                  >
+                    {actionLoading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
