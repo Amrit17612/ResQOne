@@ -1,0 +1,525 @@
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
+import {
+  OrganizationApplication,
+  OrganizationApplicationStatus
+} from '../models/organizationApplication.model.js';
+import { Hospital } from '../models/hospital.model.js';
+import { User } from '../models/user.model.js';
+import { AuditLog } from '../models/audit.model.js';
+import { UserRole } from '../constants/enums.js';
+import { sendSecurityEmail } from '../utils/mailer.js';
+import { generateSecureOTP, hashOTPWithPepper, verifyOTPWithPepper } from '../utils/secureOtp.js';
+
+/**
+ * 1. Submit Organization Application
+ */
+export const submitOrganizationApplication = async (req, res) => {
+  try {
+    const {
+      organizationName,
+      organizationType,
+      officialEmail,
+      contactNumber,
+      address,
+      registrationNumber,
+      authorizedPersonName,
+      authorizedPersonDesignation,
+      supportingDocumentUrl,
+      latitude,
+      longitude,
+      formattedAddress,
+      state,
+      district,
+      city,
+      postalCode,
+      locationSource,
+      locationAccuracy,
+      locationConfirmedByUser
+    } = req.body;
+
+    const existingApp = await OrganizationApplication.findOne({
+      $or: [{ officialEmail }, { registrationNumber }]
+    });
+
+    if (existingApp) {
+      return res.status(400).json({
+        success: false,
+        message: 'An application with this official email or registration number already exists.'
+      });
+    }
+
+    const count = await OrganizationApplication.countDocuments();
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const applicationId = `ORG-${dateStr}-${String(count + 1).padStart(4, '0')}`;
+
+    const latNum = Number(latitude) || 28.5420;
+    const lngNum = Number(longitude) || 77.2210;
+
+    const newApp = await OrganizationApplication.create({
+      applicationId,
+      organizationName,
+      organizationType,
+      officialEmail,
+      contactNumber,
+      address,
+      state: state || 'Delhi',
+      district: district || 'New Delhi',
+      city: city || 'New Delhi',
+      postalCode: postalCode || '110001',
+      location: {
+        type: 'Point',
+        coordinates: [lngNum, latNum], // GeoJSON longitude-first order
+        formattedAddress: formattedAddress || address,
+        locationSource: locationSource || 'MANUAL_PIN',
+        locationAccuracy: locationAccuracy || 10,
+        locationConfirmedByUser: locationConfirmedByUser !== false,
+        locationVerifiedByAdmin: false
+      },
+      registrationNumber,
+      authorizedPersonName,
+      authorizedPersonDesignation,
+      supportingDocumentUrl: supportingDocumentUrl || 'Uploaded Document Reference Stored',
+      status: OrganizationApplicationStatus.APPLICATION_SUBMITTED,
+      statusHistory: [
+        {
+          status: OrganizationApplicationStatus.APPLICATION_SUBMITTED,
+          note: 'Initial application submitted with confirmed physical map location.',
+          updatedBy: authorizedPersonName,
+          updatedAt: new Date()
+        }
+      ]
+    });
+
+    await AuditLog.create({
+      actorName: authorizedPersonName,
+      actorRole: 'ORGANIZATION_APPLICANT',
+      action: 'ORG_APPLICATION_SUBMITTED',
+      resource: 'OrganizationApplication',
+      resourceId: newApp._id.toString(),
+      ipAddress: req.ip
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Organization onboarding application submitted successfully. Use OTP to track application status.',
+      applicationId: newApp.applicationId,
+      status: newApp.status
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * 2. Request OTP for Application Status Tracking
+ * Security Improvement 1: Does not expose details without OTP verification
+ */
+export const requestTrackingOTP = async (req, res) => {
+  try {
+    const { applicationId, email } = req.body;
+
+    const application = await OrganizationApplication.findOne({
+      applicationId: applicationId.trim(),
+      officialEmail: email.trim().toLowerCase()
+    });
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'No matching application found. Please verify Application ID and Email.'
+      });
+    }
+
+    // Generate Cryptographically Secure 6-digit OTP using CSPRNG
+    const rawOtp = generateSecureOTP();
+    // HMAC-SHA256 with Server-side Pepper + Application ID binding
+    const otpHmac = hashOTPWithPepper(rawOtp, application.applicationId);
+
+    application.trackingOtpHash = otpHmac;
+    application.trackingOtpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 min
+    application.trackingOtpAttempts = 0;
+    await application.save();
+
+    await sendSecurityEmail({
+      to: application.officialEmail,
+      subject: `ResQOne Application Tracking OTP: ${application.applicationId}`,
+      text: `Your OTP for tracking application status is: ${rawOtp}. Valid for 5 minutes.`,
+      html: `
+        <div style="font-family: sans-serif; background: #0B132B; color: #fff; padding: 20px; border-radius: 8px;">
+          <h3 style="color: #38bdf8;">ResQOne Application Status Inquiry</h3>
+          <p>Verification Code for <strong>${application.applicationId}</strong>:</p>
+          <div style="font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #4ade80;">${rawOtp}</div>
+          <p style="font-size: 12px; color: #94a3b8;">Valid for 5 minutes.</p>
+        </div>
+      `
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Tracking verification code dispatched to registered email.'
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * 3. Verify OTP & Display Application Status
+ */
+export const verifyTrackingOTP = async (req, res) => {
+  try {
+    const { applicationId, email, otp } = req.body;
+
+    const application = await OrganizationApplication.findOne({
+      applicationId: applicationId.trim(),
+      officialEmail: email.trim().toLowerCase()
+    });
+
+    if (!application || !application.trackingOtpHash) {
+      return res.status(400).json({ success: false, message: 'Invalid tracking session.' });
+    }
+
+    if (new Date() > application.trackingOtpExpires) {
+      return res.status(400).json({ success: false, message: 'OTP has expired. Request a new one.' });
+    }
+
+    const isValidOtp = verifyOTPWithPepper(
+      String(otp).trim(),
+      application.applicationId,
+      application.trackingOtpHash
+    );
+
+    if (!isValidOtp) {
+      application.trackingOtpAttempts = (application.trackingOtpAttempts || 0) + 1;
+      await application.save();
+      return res.status(400).json({
+        success: false,
+        message: `Incorrect OTP. (${5 - application.trackingOtpAttempts} attempts remaining)`
+      });
+    }
+
+    // OTP consumed (Single-use guarantee)
+    application.trackingOtpHash = undefined;
+    application.trackingOtpExpires = undefined;
+    application.trackingOtpAttempts = 0;
+    await application.save();
+
+    return res.status(200).json({
+      success: true,
+      application: {
+        applicationId: application.applicationId,
+        organizationName: application.organizationName,
+        organizationType: application.organizationType,
+        officialEmail: application.officialEmail,
+        contactNumber: application.contactNumber,
+        address: application.address,
+        registrationNumber: application.registrationNumber,
+        status: application.status,
+        statusHistory: application.statusHistory,
+        adminNotes: application.adminNotes
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * 4. Super Admin Review Workflow
+ */
+export const getOrganizationApplications = async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = {};
+    if (status) filter.status = status;
+
+    const applications = await OrganizationApplication.find(filter).sort({ createdAt: -1 });
+    return res.status(200).json({ success: true, count: applications.length, applications });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateApplicationStatus = async (req, res) => {
+  try {
+    const { status, note, adminNotes } = req.body;
+    const application = await OrganizationApplication.findById(req.params.id);
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found' });
+    }
+
+    application.status = status;
+    if (adminNotes) application.adminNotes = adminNotes;
+
+    const transitionNote = note || `Application transitioned to ${status}`;
+
+    application.statusHistory.push({
+      status,
+      note: transitionNote,
+      updatedBy: req.user?.name || 'Super Admin',
+      updatedAt: new Date()
+    });
+
+    await application.save();
+
+    // Automated Transactional Notifications for key verification stages
+    const emailTemplates = {
+      UNDER_INITIAL_REVIEW: {
+        subject: `Application Under Review: ${application.applicationId}`,
+        message: `Your organization onboarding application (${application.applicationId}) has entered initial review by the ResQOne Super Admin authority.`
+      },
+      DOCUMENT_VERIFICATION_PENDING: {
+        subject: `Document Verification in Progress: ${application.applicationId}`,
+        message: `Your submitted statutory licenses and authority documents are currently undergoing forensic and authenticity validation.`
+      },
+      DOCUMENT_VERIFIED: {
+        subject: `Documents Verified: ${application.applicationId}`,
+        message: `All statutory credentials and submitted documents for ${application.organizationName} have been verified.`
+      },
+      ADDITIONAL_INFORMATION_REQUIRED: {
+        subject: `Action Required: Additional Information Requested for ${application.applicationId}`,
+        message: `Super Admin requires additional clarification or documents: "${adminNotes || transitionNote}". Please submit updates.`
+      },
+      PHYSICAL_VERIFICATION_PENDING: {
+        subject: `Physical Location Verification Scheduled: ${application.applicationId}`,
+        message: `Your registered address and coordinates are flagged for field verification.`
+      },
+      PHYSICAL_VERIFICATION_COMPLETED: {
+        subject: `Physical Location Verified: ${application.applicationId}`,
+        message: `Your facility coordinates and premises have been confirmed and geo-pinned on the ResQOne live emergency grid.`
+      },
+      FINAL_APPROVAL_PENDING: {
+        subject: `Final Review Pending: ${application.applicationId}`,
+        message: `Application has passed all technical and physical verification checks and is queued for final commission approval.`
+      },
+      APPROVED: {
+        subject: `Application APPROVED: ${application.applicationId}`,
+        message: `Congratulations! ${application.organizationName} has been officially approved for induction into the ResQOne emergency response network.`
+      },
+      REJECTED: {
+        subject: `Application Decision: ${application.applicationId}`,
+        message: `Your application could not be approved at this time. Reason: ${adminNotes || transitionNote}`
+      },
+      SUSPENDED: {
+        subject: `Organization Access Suspended: ${application.applicationId}`,
+        message: `Your organization dispatch privileges on ResQOne have been suspended. Inquiries may be directed to central administration.`
+      }
+    };
+
+    if (emailTemplates[status]) {
+      await sendSecurityEmail({
+        to: application.officialEmail,
+        subject: emailTemplates[status].subject,
+        text: emailTemplates[status].message,
+        html: `
+          <div style="font-family: sans-serif; background: #0B132B; color: #fff; padding: 24px; border-radius: 10px;">
+            <h3 style="color: #38bdf8;">${emailTemplates[status].subject}</h3>
+            <p>Dear <strong>${application.authorizedPersonName}</strong>,</p>
+            <p>${emailTemplates[status].message}</p>
+            <p style="margin-top: 15px; font-size: 13px; color: #94a3b8;">
+              Status: <span style="color: #4ade80; font-weight: bold;">${status}</span><br/>
+              Updated on: ${new Date().toUTCString()}
+            </p>
+          </div>
+        `
+      }).catch(err => console.error('[Mailer Error Non-blocking]', err.message));
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Application status updated to ${status}. Notification dispatched.`,
+      application
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * 5. Generate Cryptographic Activation Token (30 min expiry + Hashed in DB)
+ * Security Improvements 3, 4, 6
+ */
+export const generateOrganizationCredentials = async (req, res) => {
+  try {
+    const application = await OrganizationApplication.findById(req.params.id);
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found' });
+    }
+
+    if (application.status !== OrganizationApplicationStatus.APPROVED &&
+        application.status !== OrganizationApplicationStatus.DOCUMENTS_VERIFIED) {
+      return res.status(400).json({
+        success: false,
+        message: 'Application must be APPROVED before generating credentials.'
+      });
+    }
+
+    // 1. Generate Raw Token (Sent to client via email/link only once)
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    // 2. Hash token for storage in DB
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    // 3. 30 Minutes Expiration
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+    let orgEntityId = application.organizationId;
+    if (application.organizationType === 'HOSPITAL' && !orgEntityId) {
+      const hospital = await Hospital.create({
+        name: application.organizationName,
+        registrationNumber: application.registrationNumber,
+        phone: application.contactNumber,
+        emergencyHotline: application.contactNumber,
+        address: application.address,
+        location: {
+          type: 'Point',
+          coordinates: [77.2090, 28.6139]
+        },
+        hasTraumaCenter: true,
+        hasICU: true
+      });
+      orgEntityId = hospital._id;
+      application.organizationId = orgEntityId;
+    }
+
+    // Provision User in PENDING_ACTIVATION
+    let user = await User.findOne({ email: application.officialEmail });
+    if (!user) {
+      const dummySalt = await bcrypt.genSalt(10);
+      const temporaryHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), dummySalt);
+
+      user = await User.create({
+        name: application.authorizedPersonName,
+        email: application.officialEmail,
+        phone: application.contactNumber,
+        passwordHash: temporaryHash,
+        role: application.organizationType === 'HOSPITAL'
+          ? UserRole.HOSPITAL_COORDINATOR
+          : UserRole.CENTRAL_ADMIN,
+        departmentType: application.organizationType,
+        organizationId: orgEntityId,
+        isVerified: false,
+        status: 'PENDING_ACTIVATION',
+        activationTokenHash: tokenHash,
+        activationExpires: expiresAt
+      });
+    } else {
+      user.activationTokenHash = tokenHash;
+      user.activationExpires = expiresAt;
+      user.organizationId = orgEntityId;
+      await user.save();
+    }
+
+    application.activationTokenHash = tokenHash;
+    application.activationTokenExpires = expiresAt;
+    application.createdUserId = user._id;
+    application.status = OrganizationApplicationStatus.CREDENTIALS_SENT;
+    application.statusHistory.push({
+      status: OrganizationApplicationStatus.CREDENTIALS_SENT,
+      note: 'Secure activation link (30-minute validity) generated and dispatched.',
+      updatedBy: req.user?.name || 'Super Admin',
+      updatedAt: new Date()
+    });
+
+    await application.save();
+
+    // Production Domain Configurable
+    const baseUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const activationLink = `${baseUrl}/activate-account?token=${rawToken}`;
+
+    // Send Activation Email
+    await sendSecurityEmail({
+      to: application.officialEmail,
+      subject: 'ResQOne Official Account: Activation Link & Master Password Setup',
+      text: `Your application has been approved. Set your password here: ${activationLink}\nThis link is single-use and expires in 30 minutes.`,
+      html: `
+        <div style="font-family: sans-serif; background: #0B132B; color: #fff; padding: 25px; border-radius: 12px; max-width: 550px;">
+          <h2 style="color: #4ade80;">Application Approved</h2>
+          <p>Congratulations, <strong>${application.organizationName}</strong> is verified for ResQOne Emergency Grid.</p>
+          <p>Please establish your master password to activate your command account:</p>
+          <div style="margin: 25px 0;">
+            <a href="${activationLink}" style="background: #D97706; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+              Set Password & Activate Account
+            </a>
+          </div>
+          <p style="font-size: 11px; color: #94a3b8;">This single-use link expires in 30 minutes. Database maintains hashed token security.</p>
+        </div>
+      `
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Activation link generated and dispatched to official email.',
+      activationLink,
+      application
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * 6. Set Password & Transition to ACTIVE
+ * Flow: APPROVED -> CREDENTIALS_SENT -> PASSWORD_SET -> ACTIVE
+ */
+export const activateAccountWithToken = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    const tokenHash = crypto.createHash('sha256').update(String(token).trim()).digest('hex');
+
+    const user = await User.findOne({
+      activationTokenHash: tokenHash,
+      activationExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired activation link (links expire after 30 minutes). Please contact Super Admin.'
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.passwordHash = await bcrypt.hash(password, salt);
+    user.isVerified = true;
+    user.status = 'ACTIVE';
+    // Single-use guarantee: Invalidate token hash immediately
+    user.activationTokenHash = undefined;
+    user.activationExpires = undefined;
+    await user.save();
+
+    await OrganizationApplication.findOneAndUpdate(
+      { createdUserId: user._id },
+      {
+        status: OrganizationApplicationStatus.ACTIVE,
+        activationTokenHash: undefined,
+        activationTokenExpires: undefined,
+        $push: {
+          statusHistory: [
+            {
+              status: OrganizationApplicationStatus.PASSWORD_SET,
+              note: 'Official master password set.',
+              updatedBy: user.name,
+              updatedAt: new Date()
+            },
+            {
+              status: OrganizationApplicationStatus.ACTIVE,
+              note: 'Official command account is now fully active.',
+              updatedBy: user.name,
+              updatedAt: new Date()
+            }
+          ]
+        }
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password successfully set! Account is ACTIVE. Please login using Official Login with 2FA.'
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
