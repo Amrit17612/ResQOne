@@ -12,7 +12,19 @@ import {
   Clock,
   Database,
   Activity,
-  FileText
+  FileText,
+  MapPin,
+  ExternalLink,
+  Mail,
+  Phone,
+  Eye,
+  AlertTriangle,
+  ChevronRight,
+  UserCheck,
+  Send,
+  Sparkles,
+  Search,
+  Check
 } from 'lucide-react';
 
 export const SuperAdminDashboard = () => {
@@ -22,6 +34,9 @@ export const SuperAdminDashboard = () => {
   const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generatedLink, setGeneratedLink] = useState('');
+  const [selectedApp, setSelectedApp] = useState(null); // Detailed review modal
+  const [actionLoading, setActionLoading] = useState(false);
+  const [adminNoteInput, setAdminNoteInput] = useState('');
 
   useEffect(() => {
     fetchAdminData();
@@ -35,7 +50,14 @@ export const SuperAdminDashboard = () => {
         api.get('/operations/audit-logs')
       ]);
 
-      if (appRes.data.success) setApplications(appRes.data.applications);
+      if (appRes.data.success) {
+        setApplications(appRes.data.applications);
+        // keep selectedApp in sync if open
+        if (selectedApp) {
+          const updated = appRes.data.applications.find(a => a._id === selectedApp._id);
+          if (updated) setSelectedApp(updated);
+        }
+      }
       if (usersRes.data.success) setUsers(usersRes.data.users);
       if (logsRes.data.success) setAuditLogs(logsRes.data.logs);
     } catch (e) {
@@ -46,32 +68,68 @@ export const SuperAdminDashboard = () => {
   };
 
   const handleUpdateStatus = async (appId, status, note) => {
+    setActionLoading(true);
     try {
       const { data } = await api.patch(`/organizations/applications/${appId}/status`, {
         status,
-        note
+        note: note || adminNoteInput || `Status transitioned to ${status}`
       });
       if (data.success) {
-        alert(`Application status updated to: ${status}`);
-        fetchAdminData();
+        alert(`Application status updated to: ${status}. Notification dispatched to official email.`);
+        setAdminNoteInput('');
+        await fetchAdminData();
       }
     } catch (e) {
-      alert('Error updating application status');
+      alert(e.response?.data?.message || 'Error updating application status');
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleGenerateCredentials = async (appId) => {
+    setActionLoading(true);
     try {
       const { data } = await api.post(`/organizations/applications/${appId}/generate-credentials`);
       if (data.success) {
         setGeneratedLink(data.activationLink);
-        alert('Credentials generated! Secure activation link created.');
-        fetchAdminData();
+        alert('Credentials generated! Single-use activation link dispatched to official email.');
+        await fetchAdminData();
       }
     } catch (e) {
       alert(e.response?.data?.message || 'Error generating credentials');
+    } finally {
+      setActionLoading(false);
     }
   };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'APPROVED':
+      case 'SUCCESSFULLY_REGISTERED':
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">APPROVED & ACTIVE</span>;
+      case 'ACTIVATION_PENDING':
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">ACTIVATION LINK SENT</span>;
+      case 'DOCUMENT_VERIFIED':
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300">DOCUMENTS VERIFIED</span>;
+      case 'UNDER_INITIAL_REVIEW':
+      case 'UNDER_VERIFICATION':
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">UNDER INITIAL REVIEW</span>;
+      case 'ADDITIONAL_INFORMATION_REQUIRED':
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 border border-orange-300">INFO REQUIRED</span>;
+      case 'REJECTED':
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300">REJECTED</span>;
+      default:
+        return <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-800 border border-slate-300">APPLICATION SUBMITTED</span>;
+    }
+  };
+
+  const pipelineStages = [
+    { key: 'APPLICATION_SUBMITTED', label: 'Application Submitted' },
+    { key: 'UNDER_INITIAL_REVIEW', label: 'Under Initial Review' },
+    { key: 'DOCUMENT_VERIFIED', label: 'Document Verified' },
+    { key: 'APPROVED', label: 'Approved' },
+    { key: 'ACTIVATION_PENDING', label: 'Activated & Live' }
+  ];
 
   return (
     <DashboardLayout
@@ -122,10 +180,19 @@ export const SuperAdminDashboard = () => {
               <span>Official Account Activation Link Dispatched</span>
             </span>
             <p className="text-slate-600">
-              The activation link has been recorded in the audit trail and sent to the applicant. The organization admin can set their master password using:
+              The single-use activation link has been sent to the applicant's official email. They can establish their master password at:
             </p>
-            <div className="bg-white p-2.5 rounded-lg border border-emerald-200 font-mono text-[11px] text-emerald-700 select-all break-all">
-              {generatedLink}
+            <div className="bg-white p-2.5 rounded-lg border border-emerald-200 font-mono text-[11px] text-emerald-700 select-all break-all flex justify-between items-center">
+              <span>{generatedLink}</span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedLink);
+                  alert('Copied activation link to clipboard!');
+                }}
+                className="bg-emerald-600 text-white font-bold px-2.5 py-1 rounded text-[10px] ml-2"
+              >
+                Copy Link
+              </button>
             </div>
           </div>
         )}
@@ -177,103 +244,142 @@ export const SuperAdminDashboard = () => {
                 No organization applications submitted yet.
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <div className="space-y-4">
                 {applications.map((app) => (
-                  <div key={app._id} className="py-5 space-y-3">
-                    <div className="flex justify-between items-start">
+                  <div
+                    key={app._id}
+                    className="p-5 rounded-xl border border-slate-200 hover:border-slate-300 transition bg-slate-50/50 space-y-4"
+                  >
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                       <div>
                         <div className="flex items-center space-x-2">
-                          <span className="font-mono text-xs font-bold text-slate-500">{app.applicationId}</span>
-                          <span className="text-xs bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded">
+                          <span className="font-mono text-xs font-bold text-slate-600 bg-white border px-2 py-0.5 rounded">
+                            {app.applicationId}
+                          </span>
+                          <span className="text-xs bg-blue-100 text-blue-800 font-bold px-2.5 py-0.5 rounded">
                             {app.organizationType}
                           </span>
                         </div>
-                        <h4 className="text-base font-bold text-slate-900 mt-1">{app.organizationName}</h4>
-                        <p className="text-xs text-slate-500">
-                          {app.address} • License/Reg: <strong>{app.registrationNumber}</strong>
-                        </p>
-                        <p className="text-xs text-slate-600 mt-1">
-                          Signatory: <strong>{app.authorizedPersonName}</strong> ({app.authorizedPersonDesignation}) • Email: {app.officialEmail} • Phone: {app.contactNumber}
-                        </p>
+                        <h4 className="text-lg font-black text-slate-900 mt-1">{app.organizationName}</h4>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 mt-1">
+                          <span className="flex items-center space-x-1">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{app.address || 'Address registered on map'}</span>
+                          </span>
+                          <span>•</span>
+                          <span>Reg No: <strong className="text-slate-800">{app.registrationNumber}</strong></span>
+                          <span>•</span>
+                          <span className="flex items-center space-x-1">
+                            <Mail className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{app.officialEmail}</span>
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="text-right">
-                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-blue-100 text-blue-800">
-                          {app.status.replace(/_/g, ' ')}
-                        </span>
+                      <div className="flex items-center space-x-3">
+                        {getStatusBadge(app.status)}
+                        <button
+                          onClick={() => setSelectedApp(app)}
+                          className="bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1 shadow-sm"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-slate-600" />
+                          <span>Detailed Review</span>
+                        </button>
                       </div>
                     </div>
 
-                    {/* Super Admin Action Controls */}
-                    <div className="pt-2 flex flex-wrap gap-2 text-xs">
-                      {(app.status === 'APPLICATION_SUBMITTED' || app.status === 'UNDER_INITIAL_REVIEW') && (
-                        <button
-                          onClick={() => handleUpdateStatus(app._id, 'DOCUMENT_VERIFIED', 'Official registration documents and license verified')}
-                          className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg"
-                        >
-                          Verify Documents & License
-                        </button>
-                      )}
+                    {/* Quick Step Advance Toolbar */}
+                    <div className="bg-white p-3 rounded-lg border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center space-x-2 text-slate-500 font-medium">
+                        <Activity className="w-4 h-4 text-resq-blue" />
+                        <span>Action Workflow Controls:</span>
+                      </div>
 
-                      {(app.status === 'DOCUMENT_VERIFIED' || app.status === 'UNDER_VERIFICATION' || app.status === 'DOCUMENTS_VERIFIED') && (
-                        <>
+                      <div className="flex flex-wrap gap-2">
+                        {/* Step 1: Initial Review */}
+                        {app.status === 'APPLICATION_SUBMITTED' && (
                           <button
-                            onClick={() => handleUpdateStatus(app._id, 'APPROVED', 'Organization meets all emergency response criteria')}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg"
+                            disabled={actionLoading}
+                            onClick={() => handleUpdateStatus(app._id, 'UNDER_INITIAL_REVIEW', 'Under screening by Super Admin')}
+                            className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm"
                           >
-                            Approve Application
+                            Mark Under Initial Review
                           </button>
+                        )}
+
+                        {/* Step 2: Document Verification */}
+                        {(app.status === 'APPLICATION_SUBMITTED' || app.status === 'UNDER_INITIAL_REVIEW') && (
                           <button
-                            onClick={() => handleUpdateStatus(app._id, 'ADDITIONAL_INFORMATION_REQUIRED', 'License copy requires clarification')}
-                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg"
+                            disabled={actionLoading}
+                            onClick={() => handleUpdateStatus(app._id, 'DOCUMENT_VERIFIED', 'Official registration documents and license verified')}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm"
                           >
-                            Request Info
+                            Mark Documents Verified
                           </button>
-                        </>
-                      )}
+                        )}
 
-                      {app.status === 'ADDITIONAL_INFORMATION_REQUIRED' && (
-                        <button
-                          onClick={() => handleUpdateStatus(app._id, 'APPROVED', 'Clarification provided and accepted')}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg"
-                        >
-                          Approve Application
-                        </button>
-                      )}
+                        {/* Step 3: Approve Application */}
+                        {(app.status === 'DOCUMENT_VERIFIED' || app.status === 'UNDER_INITIAL_REVIEW' || app.status === 'ADDITIONAL_INFORMATION_REQUIRED') && (
+                          <>
+                            <button
+                              disabled={actionLoading}
+                              onClick={() => handleUpdateStatus(app._id, 'APPROVED', 'Organization meets all emergency criteria and is approved')}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-1.5 rounded-lg shadow-sm flex items-center space-x-1"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>Approve Application</span>
+                            </button>
+                            <button
+                              disabled={actionLoading}
+                              onClick={() => {
+                                const note = prompt('Enter clarification required for applicant:');
+                                if (note) handleUpdateStatus(app._id, 'ADDITIONAL_INFORMATION_REQUIRED', note);
+                              }}
+                              className="bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 font-bold px-3 py-1.5 rounded-lg"
+                            >
+                              Request Info
+                            </button>
+                          </>
+                        )}
 
-                      {app.status === 'APPROVED' && (
-                        <button
-                          onClick={() => handleGenerateCredentials(app._id)}
-                          className="bg-resq-blue hover:bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg flex items-center space-x-1"
-                        >
-                          <Key className="w-3.5 h-3.5" />
-                          <span>Generate Secure Activation Link</span>
-                        </button>
-                      )}
+                        {/* Step 4: Generate Credentials Activation Link */}
+                        {app.status === 'APPROVED' && (
+                          <button
+                            disabled={actionLoading}
+                            onClick={() => handleGenerateCredentials(app._id)}
+                            className="bg-resq-blue hover:bg-blue-600 text-white font-black px-4 py-1.5 rounded-lg shadow flex items-center space-x-1.5 animate-pulse"
+                          >
+                            <Key className="w-4 h-4" />
+                            <span>Dispatch Activation Credentials Link</span>
+                          </button>
+                        )}
 
-                      {app.status !== 'APPROVED' && app.status !== 'REJECTED' && app.status !== 'ACTIVATION_PENDING' && (
-                        <button
-                          onClick={() => handleUpdateStatus(app._id, 'REJECTED', 'Application criteria not met')}
-                          className="text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg font-medium"
-                        >
-                          Reject
-                        </button>
-                      )}
-                    </div>
-                        </button>
-                      )}
+                        {/* Activation Link Already Sent */}
+                        {(app.status === 'ACTIVATION_PENDING' || app.status === 'CREDENTIALS_SENT') && (
+                          <button
+                            disabled={actionLoading}
+                            onClick={() => handleGenerateCredentials(app._id)}
+                            className="bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 font-bold px-3 py-1.5 rounded-lg flex items-center space-x-1"
+                          >
+                            <Key className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>Resend Activation Email</span>
+                          </button>
+                        )}
 
-                      {app.status !== 'REJECTED' && app.status !== 'CREDENTIALS_SENT' && (
-                        <button
-                          onClick={() => {
-                            const reason = prompt('Enter rejection reason:');
-                            if (reason) handleUpdateStatus(app._id, 'REJECTED', reason);
-                          }}
-                          className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-lg"
-                        >
-                          Reject
-                        </button>
-                      )}
+                        {/* Reject Option */}
+                        {app.status !== 'APPROVED' && app.status !== 'ACTIVATION_PENDING' && app.status !== 'REJECTED' && (
+                          <button
+                            disabled={actionLoading}
+                            onClick={() => {
+                              const reason = prompt('Please enter rejection reason:');
+                              if (reason) handleUpdateStatus(app._id, 'REJECTED', reason);
+                            }}
+                            className="text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg font-bold"
+                          >
+                            Reject
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -287,17 +393,17 @@ export const SuperAdminDashboard = () => {
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
             <h3 className="font-bold text-sm text-slate-800 pb-3 border-b border-slate-100 flex items-center justify-between mb-4">
               <span>Authorized Department & Citizen Personnel</span>
-              <span className="text-xs bg-slate-100 px-2 py-0.5 rounded font-bold text-slate-600">{users.length}</span>
+              <span className="text-xs bg-slate-100 px-2 py-0.5 rounded font-bold text-slate-600">{users.length} Active</span>
             </h3>
 
             <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
               {users.map((u) => (
                 <div key={u._id} className="py-3 flex justify-between items-center text-xs">
                   <div>
-                    <span className="font-bold text-slate-800 block">{u.name}</span>
-                    <span className="text-slate-400">{u.email} • {u.phone}</span>
+                    <span className="font-bold text-slate-800 block text-sm">{u.name}</span>
+                    <span className="text-slate-500">{u.email} • {u.phone}</span>
                   </div>
-                  <span className="font-mono text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                  <span className="font-mono text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded">
                     {u.role}
                   </span>
                 </div>
@@ -318,17 +424,204 @@ export const SuperAdminDashboard = () => {
               {auditLogs.map((log) => (
                 <div key={log._id} className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-resq-blue">{log.action}</span>
-                    <span className="text-[10px] text-slate-400">{new Date(log.createdAt).toLocaleTimeString()}</span>
+                    <span className="font-bold text-slate-800">{log.action}</span>
+                    <span className="text-slate-400 font-mono text-[10px]">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </span>
                   </div>
-                  <div className="text-slate-600">
-                    Actor: <strong>{log.actorName}</strong> ({log.actorRole})
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    Target: {log.resource} #{log.resourceId}
-                  </div>
+                  <p className="text-slate-600">{log.details}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Detailed Review & Decision Modal */}
+        {selectedApp && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+              {/* Header */}
+              <div className="bg-slate-900 text-white p-5 flex justify-between items-center">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-mono text-xs bg-slate-800 text-amber-400 px-2 py-0.5 rounded font-bold">
+                      {selectedApp.applicationId}
+                    </span>
+                    <span className="text-xs bg-blue-500/20 text-blue-300 font-bold px-2 py-0.5 rounded">
+                      {selectedApp.organizationType}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black mt-1">{selectedApp.organizationName}</h3>
+                </div>
+                <button
+                  onClick={() => setSelectedApp(null)}
+                  className="text-slate-400 hover:text-white font-bold text-xl px-2 py-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto space-y-6 text-xs text-slate-700">
+                {/* Visual Pipeline Progress */}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  <span className="font-bold text-slate-800 uppercase tracking-wider block mb-3 text-[11px]">
+                    Current Verification Progress
+                  </span>
+                  <div className="flex items-center justify-between text-center relative">
+                    {pipelineStages.map((stg, idx) => {
+                      const isCompleted =
+                        (selectedApp.status === 'APPROVED' && idx <= 3) ||
+                        (selectedApp.status === 'ACTIVATION_PENDING' && idx <= 4) ||
+                        (selectedApp.status === 'DOCUMENT_VERIFIED' && idx <= 2) ||
+                        (selectedApp.status === 'UNDER_INITIAL_REVIEW' && idx <= 1) ||
+                        idx === 0;
+
+                      return (
+                        <div key={stg.key} className="flex-1 flex flex-col items-center z-10">
+                          <div
+                            className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
+                              isCompleted
+                                ? 'bg-emerald-600 text-white ring-4 ring-emerald-100'
+                                : 'bg-slate-200 text-slate-600'
+                            }`}
+                          >
+                            {isCompleted ? <Check className="w-4 h-4" /> : idx + 1}
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-600 mt-1 max-w-[80px]">
+                            {stg.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2-Column Details Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Authorized Signatory */}
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                    <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center space-x-1.5">
+                      <UserCheck className="w-4 h-4 text-blue-600" />
+                      <span>Authorized Representative</span>
+                    </span>
+                    <div className="space-y-1">
+                      <div>Name: <strong className="text-slate-900">{selectedApp.authorizedPersonName}</strong></div>
+                      <div>Designation: <strong>{selectedApp.authorizedPersonDesignation}</strong></div>
+                      <div>Official Email: <strong>{selectedApp.officialEmail}</strong></div>
+                      <div>Phone: <strong>{selectedApp.contactNumber}</strong></div>
+                    </div>
+                  </div>
+
+                  {/* Statutory & Location Credentials */}
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                    <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px] flex items-center space-x-1.5">
+                      <MapPin className="w-4 h-4 text-emerald-600" />
+                      <span>Facility & Geo-Coordinates</span>
+                    </span>
+                    <div className="space-y-1">
+                      <div>Registration / License: <strong className="text-slate-900">{selectedApp.registrationNumber}</strong></div>
+                      <div>Physical Address: <strong>{selectedApp.address}</strong></div>
+                      <div>State / District: <strong>{selectedApp.state || 'N/A'}, {selectedApp.district || 'N/A'}</strong></div>
+                      <div>
+                        Coordinates: <strong className="font-mono text-emerald-700">
+                          {selectedApp.location?.coordinates ? `${selectedApp.location.coordinates[1]}, ${selectedApp.location.coordinates[0]}` : 'GeoJSON Pinned'}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Audit Trail */}
+                <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+                  <span className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                    Application Status Event History
+                  </span>
+                  <div className="divide-y divide-slate-100 max-h-36 overflow-y-auto">
+                    {selectedApp.statusHistory?.map((h, i) => (
+                      <div key={i} className="py-2 flex justify-between items-center text-[11px]">
+                        <div>
+                          <span className="font-bold text-slate-800">{h.status}</span>
+                          <span className="text-slate-500 ml-2">— {h.note}</span>
+                        </div>
+                        <span className="text-slate-400 font-mono text-[10px]">
+                          {new Date(h.updatedAt).toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Admin Custom Transition Note */}
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 text-xs">Super Admin Transition Remarks / Notes:</label>
+                  <input
+                    type="text"
+                    value={adminNoteInput}
+                    onChange={(e) => setAdminNoteInput(e.target.value)}
+                    placeholder="Enter notes or requirements for this status change..."
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer Controls */}
+              <div className="bg-slate-50 p-4 border-t border-slate-200 flex flex-wrap justify-between items-center gap-2">
+                <button
+                  onClick={() => setSelectedApp(null)}
+                  className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-lg hover:bg-slate-100 text-xs"
+                >
+                  Close
+                </button>
+
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {/* Step 2: Mark Documents Verified */}
+                  {(selectedApp.status === 'APPLICATION_SUBMITTED' || selectedApp.status === 'UNDER_INITIAL_REVIEW') && (
+                    <button
+                      disabled={actionLoading}
+                      onClick={() => handleUpdateStatus(selectedApp._id, 'DOCUMENT_VERIFIED')}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg shadow-sm"
+                    >
+                      ✓ Mark Documents Verified
+                    </button>
+                  )}
+
+                  {/* Step 3: Approve Application */}
+                  {(selectedApp.status === 'DOCUMENT_VERIFIED' || selectedApp.status === 'UNDER_INITIAL_REVIEW' || selectedApp.status === 'ADDITIONAL_INFORMATION_REQUIRED') && (
+                    <button
+                      disabled={actionLoading}
+                      onClick={() => handleUpdateStatus(selectedApp._id, 'APPROVED')}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg shadow-sm flex items-center space-x-1"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Approve Organization</span>
+                    </button>
+                  )}
+
+                  {/* Step 4: Generate Credentials Activation Link */}
+                  {selectedApp.status === 'APPROVED' && (
+                    <button
+                      disabled={actionLoading}
+                      onClick={() => handleGenerateCredentials(selectedApp._id)}
+                      className="bg-resq-blue hover:bg-blue-600 text-white font-black px-5 py-2 rounded-lg shadow flex items-center space-x-1.5 animate-pulse"
+                    >
+                      <Key className="w-4 h-4" />
+                      <span>Dispatch Activation Credentials Link</span>
+                    </button>
+                  )}
+
+                  {/* If Already sent */}
+                  {selectedApp.status === 'ACTIVATION_PENDING' && (
+                    <button
+                      disabled={actionLoading}
+                      onClick={() => handleGenerateCredentials(selectedApp._id)}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg"
+                    >
+                      Resend Activation Email
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
