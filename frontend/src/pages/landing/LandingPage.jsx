@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   Activity,
@@ -12,35 +12,40 @@ import {
   Hospital,
   Truck,
   CheckCircle2,
-  FileCheck
+  FileCheck,
+  Menu,
+  X
 } from 'lucide-react';
 
 export const LandingPage = () => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans selection:bg-resq-blue selection:text-white">
       {/* Top Banner Navigation */}
-      <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-resq-crimson flex items-center justify-center text-white shadow-lg">
+      <header className="border-b border-slate-800 bg-slate-900/95 backdrop-blur sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+          <NavLink to="/" className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-resq-crimson flex items-center justify-center text-white shadow-lg flex-shrink-0">
               <Activity className="w-6 h-6 animate-pulse" />
             </div>
             <div>
-              <span className="text-2xl font-black tracking-tight text-white">
+              <span className="text-xl sm:text-2xl font-black tracking-tight text-white">
                 ResQ<span className="text-resq-crimson">One</span>
               </span>
-              <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-semibold">
+              <span className="hidden sm:block text-[10px] text-slate-400 uppercase tracking-widest font-semibold">
                 Unified Emergency Response & Disaster Grid
               </span>
             </div>
-          </div>
+          </NavLink>
 
-          <div className="flex items-center space-x-3">
+          {/* Desktop Navigation */}
+          <div className="hidden lg:flex items-center space-x-2 xl:space-x-3">
             <NavLink
               to="/track-application"
               className="px-3 py-2 text-xs font-bold text-amber-300 hover:text-white bg-amber-950/60 border border-amber-700/60 rounded-lg transition"
             >
-              Track Application Status
+              Track Status
             </NavLink>
             <NavLink
               to="/staff-login"
@@ -50,25 +55,84 @@ export const LandingPage = () => {
             </NavLink>
             <NavLink
               to="/citizen-auth"
-              className="px-4 py-2 text-xs font-bold text-slate-200 hover:text-white hover:bg-slate-800 rounded-lg transition"
+              className="px-3 py-2 text-xs font-bold text-slate-200 hover:text-white hover:bg-slate-800 rounded-lg transition"
             >
               Citizen Login / Sign Up
             </NavLink>
             <NavLink
               to="/official-login"
-              className="px-4 py-2 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 rounded-lg transition flex items-center space-x-1.5"
+              className="px-3.5 py-2 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 rounded-lg transition flex items-center space-x-1.5"
             >
               <Lock className="w-3.5 h-3.5 text-amber-400" />
               <span>Official Login</span>
             </NavLink>
             <NavLink
               to="/register-organization"
-              className="px-4 py-2 text-xs font-bold bg-resq-blue hover:bg-blue-600 text-white rounded-lg shadow-md transition"
+              className="px-3.5 py-2 text-xs font-bold bg-resq-blue hover:bg-blue-600 text-white rounded-lg shadow-md transition"
             >
               Register Organization
             </NavLink>
           </div>
+
+          {/* Mobile Hamburger Button */}
+          <div className="flex lg:hidden items-center space-x-2">
+            <NavLink
+              to="/track-application"
+              className="px-2.5 py-1.5 text-[11px] font-bold text-amber-300 bg-amber-950/70 border border-amber-700/60 rounded-lg"
+            >
+              Track
+            </NavLink>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-lg border border-slate-700"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Dropdown Menu Drawer */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden bg-slate-900 border-b border-slate-800 px-5 py-4 space-y-2.5 animate-fadeIn">
+            <NavLink
+              to="/track-application"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block w-full py-2.5 px-3 text-xs font-bold text-amber-300 bg-amber-950/40 border border-amber-800/60 rounded-lg"
+            >
+              🔍 Track Application Status
+            </NavLink>
+            <NavLink
+              to="/staff-login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block w-full py-2.5 px-3 text-xs font-bold text-indigo-300 bg-indigo-950/40 border border-indigo-800/60 rounded-lg"
+            >
+              📟 Staff Terminal
+            </NavLink>
+            <NavLink
+              to="/citizen-auth"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block w-full py-2.5 px-3 text-xs font-bold text-slate-200 bg-slate-800/60 border border-slate-700/60 rounded-lg"
+            >
+              👤 Citizen Login / Sign Up
+            </NavLink>
+            <NavLink
+              to="/official-login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block w-full py-2.5 px-3 text-xs font-bold bg-slate-800 text-slate-100 border border-slate-700 rounded-lg flex items-center space-x-2"
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Official Department Login (Super/Central Admin)</span>
+            </NavLink>
+            <NavLink
+              to="/register-organization"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block w-full text-center py-2.5 px-3 text-xs font-bold bg-resq-blue hover:bg-blue-600 text-white rounded-lg shadow"
+            >
+              🏥 Register Organization (Hospital / Police / Fire)
+            </NavLink>
+          </div>
+        )}
       </header>
 
       {/* Hero Section with 3 Core Gateways */}

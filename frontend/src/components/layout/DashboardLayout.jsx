@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -14,7 +14,9 @@ import {
   AlertTriangle,
   LogOut,
   User,
-  Activity
+  Activity,
+  Menu,
+  X
 } from 'lucide-react';
 
 const navItems = [
@@ -33,6 +35,7 @@ const navItems = [
 export const DashboardLayout = ({ children, title, subtitle }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -45,14 +48,26 @@ export const DashboardLayout = ({ children, title, subtitle }) => {
     : navItems;
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden font-sans">
-      {/* Sidebar */}
-      <aside className="w-64 bg-resq-navy text-slate-300 flex flex-col justify-between shadow-2xl z-20">
+    <div className="flex h-screen bg-slate-100 overflow-hidden font-sans relative">
+      {/* Mobile Backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          onClick={() => setMobileSidebarOpen(false)}
+          className="fixed inset-0 bg-slate-900/60 z-30 lg:hidden backdrop-blur-sm"
+        />
+      )}
+
+      {/* Sidebar - Responsive Drawer for Mobile, Permanent for Desktop */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-resq-navy text-slate-300 flex flex-col justify-between shadow-2xl transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+          mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         <div>
           {/* Brand Header */}
           <div className="p-5 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 rounded-lg bg-resq-crimson flex items-center justify-center text-white shadow-md">
+              <div className="w-9 h-9 rounded-lg bg-resq-crimson flex items-center justify-center text-white shadow-md flex-shrink-0">
                 <Activity className="w-5 h-5 animate-pulse" />
               </div>
               <div>
@@ -60,9 +75,15 @@ export const DashboardLayout = ({ children, title, subtitle }) => {
                 <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Emergency Grid</span>
               </div>
             </div>
+            <button
+              onClick={() => setMobileSidebarOpen(false)}
+              className="lg:hidden p-1 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Quick Demo Switcher Prompt */}
+          {/* Active Clearance Badge */}
           <div className="px-4 py-2 mt-2">
             <div className="bg-slate-800/80 rounded-md p-2.5 text-xs border border-slate-700/60">
               <span className="text-slate-400 block mb-1">Active Clearance:</span>
@@ -80,6 +101,7 @@ export const DashboardLayout = ({ children, title, subtitle }) => {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  onClick={() => setMobileSidebarOpen(false)}
                   className={({ isActive }) =>
                     `flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                       isActive
@@ -101,7 +123,7 @@ export const DashboardLayout = ({ children, title, subtitle }) => {
           {user ? (
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 truncate">
-                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-200">
+                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-slate-200 flex-shrink-0">
                   <User className="w-4 h-4" />
                 </div>
                 <div className="truncate">
@@ -112,7 +134,7 @@ export const DashboardLayout = ({ children, title, subtitle }) => {
               <button
                 onClick={handleLogout}
                 title="Logout"
-                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded transition"
+                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded transition ml-2"
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -128,31 +150,41 @@ export const DashboardLayout = ({ children, title, subtitle }) => {
         </div>
       </aside>
 
-      {/* Main Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Top Operational Bar */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 z-10">
-          <div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">{title}</h1>
-            {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 z-10 flex-shrink-0">
+          <div className="flex items-center space-x-3 truncate">
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="p-2 -ml-2 text-slate-600 hover:text-slate-900 rounded-lg lg:hidden"
+              aria-label="Open sidebar menu"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <div className="truncate">
+              <h1 className="text-base sm:text-xl font-bold text-slate-800 tracking-tight truncate">{title}</h1>
+              {subtitle && <p className="text-[11px] sm:text-xs text-slate-500 truncate hidden sm:block">{subtitle}</p>}
+            </div>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
+          <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+            <span className="inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-ping"></span>
-              Live Network Active
+              <span className="hidden sm:inline">Live Network Active</span>
+              <span className="sm:hidden">Live</span>
             </span>
             <NavLink
-              to="/login"
-              className="text-xs font-semibold text-slate-600 hover:text-resq-blue transition bg-slate-100 px-3 py-1.5 rounded-md border border-slate-200"
+              to="/official-login"
+              className="text-xs font-semibold text-slate-600 hover:text-resq-blue transition bg-slate-100 px-2.5 py-1.5 rounded-md border border-slate-200"
             >
-              Role Switcher
+              Switch Role
             </NavLink>
           </div>
         </header>
 
         {/* Scrollable Dashboard Body */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-8">
           {children}
         </main>
       </div>
