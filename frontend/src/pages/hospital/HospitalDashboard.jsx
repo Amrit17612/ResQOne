@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import socket from '../../services/socket';
-import { Hospital as HospitalIcon, Check, X, Activity, UserPlus, Users, Shield } from 'lucide-react';
+import { Hospital as HospitalIcon, Check, X, Activity, UserPlus, Users, Shield, Building } from 'lucide-react';
 
 export const HospitalDashboard = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('beds'); // 'beds' | 'staff'
   const [hospitals, setHospitals] = useState([]);
   const [selectedHospital, setSelectedHospital] = useState(null);
@@ -35,14 +37,29 @@ export const HospitalDashboard = () => {
       socket.off('allocation:requested');
       socket.off('allocation:updated');
     };
-  }, []);
+  }, [user]);
 
   const fetchData = async () => {
     try {
       const { data: hospData } = await api.get('/hospitals');
       if (hospData.success && hospData.hospitals.length > 0) {
-        setHospitals(hospData.hospitals);
-        setSelectedHospital(hospData.hospitals[0]);
+        let availableHospitals = hospData.hospitals;
+
+        // If the user belongs to a specific organization or hospital, scope strictly to their facility
+        if (user && user.role !== 'SUPER_ADMIN' && user.role !== 'CENTRAL_ADMIN') {
+          const userOrgId = user.organizationId || user.hospitalId;
+          if (userOrgId) {
+            const matched = hospData.hospitals.filter(
+              (h) => h._id === userOrgId || h.registrationNumber === user.badgeNumber
+            );
+            if (matched.length > 0) {
+              availableHospitals = matched;
+            }
+          }
+        }
+
+        setHospitals(availableHospitals);
+        setSelectedHospital(availableHospitals[0]);
       }
 
       const { data: reqData } = await api.get('/hospitals/allocations/requests');
@@ -122,25 +139,36 @@ export const HospitalDashboard = () => {
       subtitle="Critical Bed Quotas, Patient Transport Inflow & Scoped Hospital Staff Management"
     >
       <div className="space-y-6">
-        {/* Hospital Facility Picker */}
+        {/* Hospital Facility Header (Fixed badge for hospital coordinator, dropdown only for super admin) */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center space-x-3">
             <HospitalIcon className="w-5 h-5 text-teal-600" />
             <span className="text-xs font-bold uppercase text-slate-500">Active Hospital Facility:</span>
-            <select
-              value={selectedHospital?._id || ''}
-              onChange={(e) => {
-                const h = hospitals.find((item) => item._id === e.target.value);
-                setSelectedHospital(h);
-              }}
-              className="text-sm font-bold text-slate-800 bg-slate-50 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-teal-600 outline-none"
-            >
-              {hospitals.map((h) => (
-                <option key={h._id} value={h._id}>
-                  {h.name} ({h.registrationNumber})
-                </option>
-              ))}
-            </select>
+            {user?.role === 'SUPER_ADMIN' && hospitals.length > 1 ? (
+              <select
+                value={selectedHospital?._id || ''}
+                onChange={(e) => {
+                  const h = hospitals.find((item) => item._id === e.target.value);
+                  setSelectedHospital(h);
+                }}
+                className="text-sm font-bold text-slate-800 bg-slate-50 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-teal-600 outline-none"
+              >
+                {hospitals.map((h) => (
+                  <option key={h._id} value={h._id}>
+                    {h.name} ({h.registrationNumber})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="flex items-center space-x-2 bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-lg">
+                <span className="text-sm font-black text-teal-900">
+                  {selectedHospital?.name || 'City Cair Hospital'}
+                </span>
+                <span className="text-[11px] font-mono text-teal-700 bg-white/80 px-2 py-0.5 rounded border border-teal-200">
+                  {selectedHospital?.registrationNumber || 'HOSP-DEL-9842'}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center space-x-2">
