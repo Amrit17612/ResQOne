@@ -17,7 +17,15 @@ export const getEligibleOrganizations = async (req, res) => {
     const { role } = req.query;
 
     const filter = {
-      status: 'APPROVED'
+      status: {
+        $in: [
+          'APPROVED',
+          'SUCCESSFULLY_REGISTERED',
+          'ACTIVE',
+          'ACTIVATION_PENDING',
+          'CREDENTIALS_SENT'
+        ]
+      }
     };
 
     if (role) {
