@@ -132,7 +132,59 @@ export const submitOrganizationApplication = async (req, res) => {
 };
 
 /**
+ * Public Direct Tracking (No OTP Required)
+ * Allows checking status using Reference ID OR Official Email
+ */
+export const trackApplicationDirect = async (req, res) => {
+  try {
+    const { identifier } = req.body;
+
+    if (!identifier || !identifier.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide either Application Reference ID or Registered Official Email.'
+      });
+    }
+
+    const cleanInput = identifier.trim();
+
+    const application = await OrganizationApplication.findOne({
+      $or: [
+        { applicationId: cleanInput },
+        { officialEmail: cleanInput.toLowerCase() }
+      ]
+    }).sort({ createdAt: -1 });
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'No matching application found for the provided Reference ID or Email.'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      application: {
+        applicationId: application.applicationId,
+        organizationName: application.organizationName,
+        organizationType: application.organizationType,
+        officialEmail: application.officialEmail,
+        authorizedPersonName: application.authorizedPersonName,
+        status: application.status,
+        statusHistory: application.statusHistory,
+        createdAt: application.createdAt,
+        updatedAt: application.updatedAt,
+        location: application.location
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
  * 2. Request OTP for Application Status Tracking
+
  * Security Improvement 1: Does not expose details without OTP verification
  */
 export const requestTrackingOTP = async (req, res) => {

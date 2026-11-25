@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   submitOrganizationApplication,
+  trackApplicationDirect,
   requestTrackingOTP,
   verifyTrackingOTP,
   getOrganizationApplications,
@@ -29,6 +30,9 @@ router.post(
   validateBody(organizationApplicationSchema),
   submitOrganizationApplication
 );
+
+// Public Direct tracking (No OTP Required)
+router.post('/track-direct', trackApplicationDirect);
 
 // Secure OTP-gated application tracking
 router.post('/track/request-otp', requestTrackingOTP);
