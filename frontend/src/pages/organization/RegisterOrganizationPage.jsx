@@ -144,30 +144,44 @@ export const RegisterOrganizationPage = () => {
             </div>
 
             <div className="bg-slate-50 rounded-xl p-5 border border-slate-200 my-6 space-y-3">
-              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-                <span className="text-xs font-bold text-slate-500 uppercase">Application Reference ID</span>
-                <span className="text-sm font-mono font-black text-resq-blue bg-blue-50 px-3 py-1 rounded-md border border-blue-200">
-                  {submittedApp.applicationId}
-                </span>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 border-b border-slate-200 gap-2">
+                <div>
+                  <span className="text-xs font-bold text-slate-500 uppercase block">Application Reference ID</span>
+                  <span className="text-xs text-amber-600 font-medium">Please save or copy this ID to track your status later</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-mono font-black text-resq-blue bg-blue-50 px-3.5 py-1.5 rounded-lg border border-blue-200 select-all">
+                    {submittedApp.applicationId}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(submittedApp.applicationId);
+                      alert(`Copied Reference ID: ${submittedApp.applicationId}`);
+                    }}
+                    className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg transition"
+                  >
+                    Copy ID
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-500 uppercase">Organization:</span>
+                <span className="text-slate-800 font-semibold">{formData.organizationName} ({formData.organizationType})</span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 font-semibold">Organization Name:</span>
-                <span className="text-slate-900 font-bold">{submittedApp.data?.organizationName}</span>
+                <span className="font-bold text-slate-500 uppercase">Registered Official Email:</span>
+                <span className="text-slate-800 font-semibold">{formData.officialEmail}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 font-semibold">Registered Official Email:</span>
-                <span className="text-slate-900 font-bold">{submittedApp.data?.officialEmail}</span>
+                <span className="font-bold text-slate-500 uppercase">Registered Location:</span>
+                <span className="text-slate-800 font-semibold">{formData.city || formData.district || 'Confirmed Pin Location'}, {formData.state}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 font-semibold">Physical Location:</span>
-                <span className="text-emerald-700 font-mono text-[11px] font-bold">
-                  {submittedApp.data?.location?.coordinates?.[1]?.toFixed(5)}, {submittedApp.data?.location?.coordinates?.[0]?.toFixed(5)} (GeoJSON Point)
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 font-semibold">Current Review Status:</span>
-                <span className="bg-amber-100 text-amber-800 font-bold px-2.5 py-0.5 rounded-full text-[10px]">
-                  {submittedApp.data?.status || 'APPLICATION_SUBMITTED'}
+                <span className="font-bold text-slate-500 uppercase">Current Review Status:</span>
+                <span className="font-mono font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200">
+                  {submittedApp.status}
                 </span>
               </div>
             </div>

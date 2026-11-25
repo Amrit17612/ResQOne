@@ -37,6 +37,12 @@ export const LandingPage = () => {
 
           <div className="flex items-center space-x-3">
             <NavLink
+              to="/track-application"
+              className="px-3 py-2 text-xs font-bold text-amber-300 hover:text-white bg-amber-950/60 border border-amber-700/60 rounded-lg transition"
+            >
+              Track Application Status
+            </NavLink>
+            <NavLink
               to="/staff-login"
               className="px-3 py-2 text-xs font-bold text-indigo-300 hover:text-white bg-indigo-950/60 border border-indigo-700/60 rounded-lg transition"
             >

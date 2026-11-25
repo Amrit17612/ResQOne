@@ -191,13 +191,36 @@ export const OfficialLoginPage = () => {
                 <span>{loading ? 'Validating 2FA...' : 'Authenticate & Enter Dashboard'}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="w-full text-center text-xs text-slate-400 hover:text-slate-200"
-              >
-                ← Back to Password
-              </button>
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="text-xs text-slate-400 hover:text-slate-200"
+                >
+                  ← Back to Password
+                </button>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={async () => {
+                    setError('');
+                    setLoading(true);
+                    try {
+                      const { data } = await api.post('/auth/official/login-initiate', { email, password });
+                      if (data.requires2FA) {
+                        alert('Fresh 2FA Verification code requested and generated!');
+                      }
+                    } catch (err) {
+                      setError(err.response?.data?.message || 'Failed to resend code');
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  className="text-xs text-amber-400 hover:text-amber-300 font-bold"
+                >
+                  Resend Code
+                </button>
+              </div>
             </form>
           )}
 
