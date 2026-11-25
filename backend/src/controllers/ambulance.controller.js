@@ -74,3 +74,65 @@ export const updateAmbulanceLocation = async (req, res) => {
   }
 };
 
+/**
+ * Create Ambulance for Hospital
+ */
+export const createHospitalAmbulance = async (req, res) => {
+  try {
+    const { vehicleNumber, driverName, driverPhone, paramedicName, ambulanceType, assignedHospitalId, coordinates } = req.body;
+
+    const hospitalId = assignedHospitalId || req.user?.hospitalId || req.user?.organizationId;
+    const defaultCoords = coordinates || [77.221, 28.542];
+
+    const ambulance = await Ambulance.create({
+      vehicleNumber: vehicleNumber.trim().toUpperCase(),
+      driverName: driverName.trim(),
+      driverPhone: driverPhone.trim(),
+      paramedicName: (paramedicName || driverName).trim(),
+      ambulanceType: ambulanceType || 'ALS',
+      status: 'AVAILABLE',
+      assignedHospitalId: hospitalId,
+      currentLocation: {
+        type: 'Point',
+        coordinates: defaultCoords
+      }
+    });
+
+    try {
+      const io = getIO();
+      io.emit('ambulance:registered', ambulance);
+    } catch (e) {}
+
+    return res.status(201).json({ success: true, message: 'Ambulance registered to hospital fleet.', ambulance });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Dispatch Ambulance to Emergency Incident
+ */
+export const dispatchHospitalAmbulance = async (req, res) => {
+  try {
+    const { ambulanceId, incidentId } = req.body;
+
+    const ambulance = await Ambulance.findById(ambulanceId);
+    if (!ambulance) {
+      return res.status(404).json({ success: false, message: 'Ambulance not found' });
+    }
+
+    ambulance.status = 'DISPATCHED';
+    ambulance.activeIncidentId = incidentId;
+    await ambulance.save();
+
+    try {
+      const io = getIO();
+      io.emit('ambulance:dispatched', { ambulanceId, incidentId });
+    } catch (e) {}
+
+    return res.status(200).json({ success: true, message: 'Ambulance dispatched to incident location.', ambulance });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+

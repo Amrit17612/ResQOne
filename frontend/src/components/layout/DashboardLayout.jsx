@@ -25,7 +25,6 @@ const navItems = [
   { name: 'Police Command', path: '/police', icon: Shield, roles: ['POLICE_DISPATCHER', 'SUPER_ADMIN'] },
   { name: 'Fire & Rescue', path: '/fire', icon: Flame, roles: ['FIRE_COMMANDER', 'SUPER_ADMIN'] },
   { name: 'Hospital Ops', path: '/hospital', icon: Hospital, roles: ['HOSPITAL_COORDINATOR', 'SUPER_ADMIN'] },
-  { name: 'Ambulance EMS', path: '/ambulance', icon: Truck, roles: ['AMBULANCE_PARAMEDIC', 'SUPER_ADMIN'] },
   { name: 'Disaster Hub', path: '/disaster', icon: CloudLightning, roles: ['DISASTER_OFFICER', 'SUPER_ADMIN'] },
   { name: 'Shelter & Relief', path: '/shelter', icon: Home, roles: ['SHELTER_MANAGER', 'SUPER_ADMIN'] },
   { name: 'Volunteer Ops', path: '/volunteer', icon: Users, roles: ['VOLUNTEER', 'SUPER_ADMIN'] },

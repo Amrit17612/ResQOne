@@ -17,17 +17,22 @@ import {
   Award,
   CheckCircle2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Truck,
+  PlusCircle,
+  Send,
+  Navigation
 } from 'lucide-react';
 
 export const HospitalDashboard = () => {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
-  const [activeTab, setActiveTab] = useState('beds'); // 'beds' | 'analytics' | 'staff'
+  const [activeTab, setActiveTab] = useState('beds'); // 'beds' | 'analytics' | 'ambulances' | 'staff'
   const [hospitals, setHospitals] = useState([]);
   const [selectedHospital, setSelectedHospital] = useState(null);
   const [allocationRequests, setAllocationRequests] = useState([]);
   const [allIncidents, setAllIncidents] = useState([]);
+  const [ambulances, setAmbulances] = useState([]);
 
   // Hospital Staff Management state (Hospital Only)
   const [staffList, setStaffList] = useState([]);
@@ -37,6 +42,16 @@ export const HospitalDashboard = () => {
     email: '',
     phone: '',
     staffRole: 'DOCTOR'
+  });
+
+  // Ambulance Modal state
+  const [showAmbulanceModal, setShowAmbulanceModal] = useState(false);
+  const [newAmbulance, setNewAmbulance] = useState({
+    vehicleNumber: '',
+    driverName: '',
+    driverPhone: '',
+    paramedicName: '',
+    ambulanceType: 'ALS'
   });
 
   useEffect(() => {
@@ -50,18 +65,29 @@ export const HospitalDashboard = () => {
       setAllocationRequests((prev) => prev.map((r) => (r._id === updated._id ? updated : r)));
     });
 
+    socket.on('ambulance:registered', (newAmb) => {
+      setAmbulances((prev) => [newAmb, ...prev]);
+    });
+
+    socket.on('ambulance:status_updated', (updated) => {
+      setAmbulances((prev) => prev.map((a) => (a._id === updated._id ? updated : a)));
+    });
+
     return () => {
       socket.off('allocation:requested');
       socket.off('allocation:updated');
+      socket.off('ambulance:registered');
+      socket.off('ambulance:status_updated');
     };
   }, [user]);
 
   const fetchData = async () => {
     try {
-      const [hospRes, reqRes, incRes] = await Promise.all([
+      const [hospRes, reqRes, incRes, ambRes] = await Promise.all([
         api.get('/hospitals'),
         api.get('/hospitals/allocations/requests'),
-        api.get('/incidents')
+        api.get('/incidents'),
+        api.get('/ambulances')
       ]);
 
       if (hospRes.data.success && hospRes.data.hospitals.length > 0) {
@@ -89,6 +115,10 @@ export const HospitalDashboard = () => {
 
       if (incRes.data.success) {
         setAllIncidents(incRes.data.incidents || []);
+      }
+
+      if (ambRes.data.success) {
+        setAmbulances(ambRes.data.ambulances || []);
       }
 
       // Fetch Staff for this hospital (only needed for Hospital Admin)
@@ -138,7 +168,6 @@ export const HospitalDashboard = () => {
         }));
       }
     } catch (e) {
-      // Revert if network error
       setSelectedHospital(prevHospitalState);
       alert('Network error updating beds. Value restored.');
     }
@@ -162,9 +191,12 @@ export const HospitalDashboard = () => {
   const handleCreateStaff = async (e) => {
     e.preventDefault();
     try {
-      const { data } = await api.post('/hospitals/staff', newStaff);
+      const { data } = await api.post('/hospitals/staff/provision', {
+        ...newStaff,
+        hospitalId: selectedHospital?._id
+      });
       if (data.success) {
-        alert(data.message);
+        alert(`Staff account provisioned! Staff ID: ${data.staff.staffId}`);
         setShowStaffModal(false);
         setNewStaff({ name: '', email: '', phone: '', staffRole: 'DOCTOR' });
         fetchData();
@@ -173,6 +205,34 @@ export const HospitalDashboard = () => {
       alert(err.response?.data?.message || 'Error creating staff member');
     }
   };
+
+  const handleCreateAmbulance = async (e) => {
+    e.preventDefault();
+    try {
+      const { data } = await api.post('/ambulances/hospital/create', {
+        ...newAmbulance,
+        assignedHospitalId: selectedHospital?._id
+      });
+      if (data.success) {
+        alert('Ambulance vehicle and driver successfully registered to hospital fleet!');
+        setShowAmbulanceModal(false);
+        setNewAmbulance({
+          vehicleNumber: '',
+          driverName: '',
+          driverPhone: '',
+          paramedicName: '',
+          ambulanceType: 'ALS'
+        });
+        fetchData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error creating ambulance unit');
+    }
+  };
+
+  const hospitalAmbulances = ambulances.filter(
+    (a) => (a.assignedHospitalId?._id || a.assignedHospitalId) === selectedHospital?._id
+  );
 
   return (
     <DashboardLayout
@@ -208,7 +268,7 @@ export const HospitalDashboard = () => {
             ) : (
               <div className="flex items-center space-x-2 bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-lg">
                 <span className="text-sm font-black text-teal-900">
-                  {selectedHospital?.name || 'City Cair Hospital'}
+                  {selectedHospital?.name || 'City Care Hospital'}
                 </span>
                 <span className="text-[11px] font-mono text-teal-700 bg-white/80 px-2 py-0.5 rounded border border-teal-200">
                   {selectedHospital?.registrationNumber || 'HOSP-DEL-9842'}
@@ -242,17 +302,31 @@ export const HospitalDashboard = () => {
                 <span>Incident Coverage & Success Rate</span>
               </button>
             ) : (
-              <button
-                onClick={() => setActiveTab('staff')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
-                  activeTab === 'staff'
-                    ? 'bg-teal-600 text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span>Hospital Staff ({staffList.length})</span>
-              </button>
+              <>
+                <button
+                  onClick={() => setActiveTab('ambulances')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
+                    activeTab === 'ambulances'
+                      ? 'bg-teal-600 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <Truck className="w-3.5 h-3.5" />
+                  <span>Ambulance Fleet ({hospitalAmbulances.length})</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('staff')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
+                    activeTab === 'staff'
+                      ? 'bg-teal-600 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Hospital Staff ({staffList.length})</span>
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -439,7 +513,7 @@ export const HospitalDashboard = () => {
                 <div className="flex items-center space-x-2">
                   <BarChart3 className="w-5 h-5 text-indigo-600" />
                   <h3 className="font-bold text-base text-slate-800">
-                    Emergency Incident Coverage History ({selectedHospital?.name || 'City Cair Hospital'})
+                    Emergency Incident Coverage History ({selectedHospital?.name || 'City Care Hospital'})
                   </h3>
                 </div>
                 <span className="text-xs bg-indigo-50 text-indigo-700 font-bold px-3 py-1 rounded-full border border-indigo-200">
@@ -484,6 +558,98 @@ export const HospitalDashboard = () => {
                 </div>
               )}
             </div>
+          </div>
+        ) : activeTab === 'ambulances' ? (
+          /* Hospital Ambulance Fleet & Drivers Management Tab */
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-slate-100 gap-3">
+              <div>
+                <h3 className="font-bold text-base text-slate-800 flex items-center space-x-2">
+                  <Truck className="w-5 h-5 text-teal-600" />
+                  <span>Hospital Ambulance Fleet & Driver Units</span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Ambulance vehicles and paramedics permanently stationed at {selectedHospital?.name || 'this hospital'}.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAmbulanceModal(true)}
+                className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center space-x-1.5 transition shadow-sm"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Add Hospital Ambulance</span>
+              </button>
+            </div>
+
+            {hospitalAmbulances.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 text-xs">
+                No ambulances registered under this hospital yet. Click "Add Hospital Ambulance" to register vehicles and drivers.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {hospitalAmbulances.map((amb) => (
+                  <div
+                    key={amb._id}
+                    className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition bg-slate-50/50 space-y-3"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="font-mono text-xs font-black text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded">
+                          {amb.vehicleNumber}
+                        </span>
+                        <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded ml-2">
+                          {amb.ambulanceType}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          amb.status === 'AVAILABLE'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : amb.status === 'DISPATCHED'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-indigo-100 text-indigo-800'
+                        }`}
+                      >
+                        {amb.status}
+                      </span>
+                    </div>
+
+                    <div className="text-xs space-y-1 text-slate-600">
+                      <div>Driver: <strong className="text-slate-800">{amb.driverName}</strong> ({amb.driverPhone})</div>
+                      <div>Paramedic: <strong className="text-slate-800">{amb.paramedicName}</strong></div>
+                      {amb.activeIncidentId && (
+                        <div className="text-amber-700 font-semibold bg-amber-50 p-1.5 rounded">
+                          Dispatched to Incident: {amb.activeIncidentId.referenceId || amb.activeIncidentId}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/60 flex justify-between items-center text-xs">
+                      <span className="text-[11px] text-slate-400 flex items-center space-x-1">
+                        <Navigation className="w-3.5 h-3.5" />
+                        <span>GPS Live Connected</span>
+                      </span>
+                      {amb.status !== 'AVAILABLE' && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await api.patch(`/ambulances/${amb._id}/status`, { status: 'AVAILABLE' });
+                              alert('Ambulance marked Available at hospital base.');
+                              fetchData();
+                            } catch (e) {
+                              alert('Error updating status');
+                            }
+                          }}
+                          className="text-xs text-teal-700 font-bold hover:underline"
+                        >
+                          Mark Available
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           /* Staff Management Tab (Strict Hospital Data Isolation) */
@@ -534,7 +700,7 @@ export const HospitalDashboard = () => {
                 <h3 className="font-bold text-sm text-slate-900">Provision Hospital Staff Account</h3>
                 <button
                   onClick={() => setShowStaffModal(false)}
-                  className="text-slate-400 hover:text-slate-600"
+                  className="text-slate-400 hover:text-slate-600 font-bold"
                 >
                   ✕
                 </button>
@@ -583,32 +749,131 @@ export const HospitalDashboard = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-600 mb-1">Assigned Role</label>
+                  <label className="block font-bold text-slate-600 mb-1">Assigned Department Role</label>
                   <select
                     value={newStaff.staffRole}
                     onChange={(e) => setNewStaff({ ...newStaff, staffRole: e.target.value })}
-                    className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-teal-600 font-semibold"
+                    className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-teal-600"
                   >
-                    <option value="DOCTOR">Doctor (Emergency / ICU)</option>
-                    <option value="BED_MANAGER">Bed Inventory Manager</option>
-                    <option value="EMERGENCY_COORDINATOR">Emergency Inflow Coordinator</option>
-                    <option value="NURSE_IN_CHARGE">Nurse In-Charge</option>
+                    <option value="DOCTOR">Doctor (Emergency Triage)</option>
+                    <option value="NURSE">Nurse (Inpatient Care)</option>
+                    <option value="BED_MANAGER">Bed Manager (Quota Allocation)</option>
+                    <option value="AMBULANCE_DRIVER">Hospital Ambulance Driver</option>
                   </select>
                 </div>
 
-                <div className="pt-3 flex space-x-2">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded-xl transition"
-                  >
-                    Establish Staff Account
-                  </button>
+                <div className="pt-2 flex justify-end space-x-2">
                   <button
                     type="button"
                     onClick={() => setShowStaffModal(false)}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-4 py-2.5 rounded-xl transition"
+                    className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 font-bold"
                   >
                     Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg"
+                  >
+                    Provision Account
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Add Hospital Ambulance */}
+        {showAmbulanceModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+                <h3 className="font-bold text-sm text-slate-900 flex items-center space-x-2">
+                  <Truck className="w-4 h-4 text-teal-600" />
+                  <span>Register Hospital Ambulance & Driver</span>
+                </h3>
+                <button
+                  onClick={() => setShowAmbulanceModal(false)}
+                  className="text-slate-400 hover:text-slate-600 font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateAmbulance} className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-bold text-slate-600 mb-1">Vehicle Registration Number</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. PB-08-AB-1234"
+                    value={newAmbulance.vehicleNumber}
+                    onChange={(e) => setNewAmbulance({ ...newAmbulance, vehicleNumber: e.target.value.toUpperCase() })}
+                    className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-teal-600 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-600 mb-1">Ambulance Type / Capability</label>
+                  <select
+                    value={newAmbulance.ambulanceType}
+                    onChange={(e) => setNewAmbulance({ ...newAmbulance, ambulanceType: e.target.value })}
+                    className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-teal-600 font-bold"
+                  >
+                    <option value="ALS">Advanced Life Support (ALS - Ventilator & Defibrillator)</option>
+                    <option value="BLS">Basic Life Support (BLS - Oxygen & Stretcher)</option>
+                    <option value="PATIENT_TRANSPORT">Patient Transport Vehicle (Standard)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-600 mb-1">Assigned Driver Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Sukhwinder Singh"
+                    value={newAmbulance.driverName}
+                    onChange={(e) => setNewAmbulance({ ...newAmbulance, driverName: e.target.value })}
+                    className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-teal-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-600 mb-1">Driver Phone Number (10 Digits)</label>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    placeholder="9876543210"
+                    value={newAmbulance.driverPhone}
+                    onChange={(e) => setNewAmbulance({ ...newAmbulance, driverPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                    className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-teal-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-600 mb-1">On-Duty Paramedic Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Paramedic Sunita Devi"
+                    value={newAmbulance.paramedicName}
+                    onChange={(e) => setNewAmbulance({ ...newAmbulance, paramedicName: e.target.value })}
+                    className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-teal-600"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAmbulanceModal(false)}
+                    className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg"
+                  >
+                    Register Ambulance
                   </button>
                 </div>
               </form>
