@@ -85,21 +85,38 @@ export const HospitalDashboard = () => {
     if (!selectedHospital) return;
     const current = selectedHospital.beds[category][field];
     const newCount = Math.max(0, current + delta);
+    if (newCount === current) return;
 
+    // 1. Instant Optimistic UI Update (0 millisecond lag on screen)
+    const prevHospitalState = { ...selectedHospital };
+    setSelectedHospital((prev) => ({
+      ...prev,
+      beds: {
+        ...prev.beds,
+        [category]: {
+          ...prev.beds[category],
+          [field]: newCount
+        }
+      }
+    }));
+
+    // 2. Sync to Backend in the background
     try {
       const payload = {
         bedCategory: category,
         [field]: newCount
       };
       const { data } = await api.patch(`/hospitals/${selectedHospital._id}/beds`, payload);
-      if (data.success) {
-        setSelectedHospital({
-          ...selectedHospital,
+      if (data.success && data.beds) {
+        setSelectedHospital((prev) => ({
+          ...prev,
           beds: data.beds
-        });
+        }));
       }
     } catch (e) {
-      alert('Error updating beds');
+      // Revert if network error
+      setSelectedHospital(prevHospitalState);
+      alert('Network error updating beds. Value restored.');
     }
   };
 
