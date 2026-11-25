@@ -53,6 +53,7 @@ export const getMailTransporter = async () => {
 export const sendSecurityEmail = async ({ to, subject, html, text }) => {
   try {
     const mailer = await getMailTransporter();
+    console.log(`[ResQOne Mailer] Dispatching email to: ${to}...`);
     const info = await mailer.sendMail({
       from: `"ResQOne Security Grid" <${process.env.SMTP_FROM || 'security@resqone.org'}>`,
       to,
@@ -61,14 +62,14 @@ export const sendSecurityEmail = async ({ to, subject, html, text }) => {
       html
     });
 
-    console.log(`[ResQOne Mailer] Email sent to ${to} (MessageId: ${info.messageId})`);
+    console.log(`[ResQOne Mailer] ✅ Email successfully delivered to ${to} (MessageId: ${info.messageId})`);
     if (nodemailer.getTestMessageUrl(info)) {
       console.log(`[ResQOne Mailer] Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
     }
 
     return { success: true, messageId: info.messageId, previewUrl: nodemailer.getTestMessageUrl(info) };
   } catch (err) {
-    console.error('[ResQOne Mailer] Error sending mail:', err.message);
+    console.error(`[ResQOne Mailer] ❌ Email send error to ${to}:`, err.message || err);
     return { success: false, error: err.message };
   }
 };
