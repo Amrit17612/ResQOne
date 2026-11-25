@@ -384,8 +384,34 @@ export const updateApplicationStatus = async (req, res) => {
         message: `Congratulations! ${application.organizationName} has been officially approved for induction into the ResQOne emergency response network.`
       },
       REJECTED: {
-        subject: `Application Decision: ${application.applicationId}`,
-        message: `Your application could not be approved at this time. Reason: ${adminNotes || transitionNote}`
+        subject: `Application Status Update: REJECTED - ${application.applicationId}`,
+        message: `Your organization onboarding application (${application.applicationId}) has been rejected by the Super Admin authority. Reason: ${adminNotes || transitionNote}`,
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0B132B; color: #fff; padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #1c2a4e;">
+            <div style="display: flex; align-items: center; margin-bottom: 20px;">
+              <h2 style="color: #f43f5e; margin: 0; font-size: 22px;">Application Rejected</h2>
+            </div>
+            <p style="font-size: 15px; color: #e2e8f0; line-height: 1.6;">
+              Dear <strong>${application.authorizedPersonName}</strong>,
+            </p>
+            <p style="font-size: 14px; color: #94a3b8; line-height: 1.6;">
+              We regret to inform you that the onboarding application for <strong>${application.organizationName}</strong> (Ref ID: <span style="font-family: monospace; color: #38bdf8;">${application.applicationId}</span>) could not be approved at this time.
+            </p>
+            <div style="background: rgba(244, 63, 94, 0.1); border-left: 4px solid #f43f5e; padding: 15px 20px; border-radius: 6px; margin: 25px 0;">
+              <span style="display: block; font-size: 12px; font-weight: bold; text-transform: uppercase; color: #fda4af; letter-spacing: 1px; margin-bottom: 5px;">Reason for Rejection:</span>
+              <p style="font-size: 14px; color: #ffffff; margin: 0; line-height: 1.5; font-weight: 500;">
+                "${adminNotes || transitionNote}"
+              </p>
+            </div>
+            <p style="font-size: 13px; color: #94a3b8; line-height: 1.6;">
+              If you believe this decision was made in error or if you have corrected the specified issues, you may submit a fresh application with revised statutory documentation.
+            </p>
+            <hr style="border: 0; border-top: 1px solid #1e293b; margin: 25px 0;" />
+            <p style="font-size: 11px; color: #64748b; margin: 0;">
+              ResQOne Emergency Grid Security & Governance Authority • Generated on ${new Date().toUTCString()}
+            </p>
+          </div>
+        `
       },
       SUSPENDED: {
         subject: `Organization Access Suspended: ${application.applicationId}`,
@@ -394,15 +420,16 @@ export const updateApplicationStatus = async (req, res) => {
     };
 
     if (emailTemplates[status]) {
+      const template = emailTemplates[status];
       await sendSecurityEmail({
         to: application.officialEmail,
-        subject: emailTemplates[status].subject,
-        text: emailTemplates[status].message,
-        html: `
+        subject: template.subject,
+        text: template.message,
+        html: template.html || `
           <div style="font-family: sans-serif; background: #0B132B; color: #fff; padding: 24px; border-radius: 10px;">
-            <h3 style="color: #38bdf8;">${emailTemplates[status].subject}</h3>
+            <h3 style="color: #38bdf8;">${template.subject}</h3>
             <p>Dear <strong>${application.authorizedPersonName}</strong>,</p>
-            <p>${emailTemplates[status].message}</p>
+            <p>${template.message}</p>
             <p style="margin-top: 15px; font-size: 13px; color: #94a3b8;">
               Status: <span style="color: #4ade80; font-weight: bold;">${status}</span><br/>
               Updated on: ${new Date().toUTCString()}

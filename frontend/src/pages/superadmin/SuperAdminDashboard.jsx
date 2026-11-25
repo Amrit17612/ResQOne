@@ -35,6 +35,8 @@ export const SuperAdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [generatedLink, setGeneratedLink] = useState('');
   const [selectedApp, setSelectedApp] = useState(null); // Detailed review modal
+  const [rejectingApp, setRejectingApp] = useState(null); // Dedicated Rejection modal
+  const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [adminNoteInput, setAdminNoteInput] = useState('');
 
@@ -366,17 +368,17 @@ export const SuperAdminDashboard = () => {
                           </button>
                         )}
 
-                        {/* Reject Option */}
+                        {/* Reject Option with Dedicated Reason Modal */}
                         {app.status !== 'APPROVED' && app.status !== 'ACTIVATION_PENDING' && app.status !== 'REJECTED' && (
                           <button
                             disabled={actionLoading}
                             onClick={() => {
-                              const reason = prompt('Please enter rejection reason:');
-                              if (reason) handleUpdateStatus(app._id, 'REJECTED', reason);
+                              setRejectingApp(app);
+                              setRejectionReason('');
                             }}
-                            className="text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg font-bold"
+                            className="text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg font-bold border border-rose-200"
                           >
-                            Reject
+                            Reject Application
                           </button>
                         )}
                       </div>
@@ -620,7 +622,99 @@ export const SuperAdminDashboard = () => {
                       Resend Activation Email
                     </button>
                   )}
+                  {/* Reject Option inside Modal */}
+                  {selectedApp.status !== 'APPROVED' && selectedApp.status !== 'ACTIVATION_PENDING' && selectedApp.status !== 'REJECTED' && (
+                    <button
+                      disabled={actionLoading}
+                      onClick={() => {
+                        setRejectingApp(selectedApp);
+                        setRejectionReason('');
+                      }}
+                      className="text-rose-600 hover:bg-rose-50 px-3 py-2 rounded-lg font-bold border border-rose-200"
+                    >
+                      Reject Application
+                    </button>
+                  )}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dedicated Rejection Modal with Reason */}
+        {rejectingApp && (
+          <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-rose-200 overflow-hidden">
+              <div className="bg-rose-600 text-white p-5 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="w-5 h-5 text-white" />
+                  <h3 className="font-bold text-base">Reject Organization Application</h3>
+                </div>
+                <button
+                  onClick={() => setRejectingApp(null)}
+                  className="text-rose-200 hover:text-white font-bold text-lg"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4 text-xs text-slate-700">
+                <div className="bg-rose-50 border border-rose-100 p-3.5 rounded-xl space-y-1">
+                  <span className="font-bold text-rose-900 block text-sm">
+                    {rejectingApp.organizationName}
+                  </span>
+                  <p className="text-rose-700">
+                    Application ID: <strong>{rejectingApp.applicationId}</strong> • Official Email: <strong>{rejectingApp.officialEmail}</strong>
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-800 text-xs block">
+                    Reason for Rejection <span className="text-rose-600">*</span> (This will be sent directly to applicant's email):
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="e.g. Incomplete statutory hospital registration certificate, or municipal health license copy expired on 2025-10-12..."
+                    className="w-full p-3 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none resize-none"
+                  />
+                  <p className="text-[11px] text-slate-400">
+                    The applicant will receive a formal notification email with this exact reason and guidance for re-applying.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-end space-x-3 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setRejectingApp(null)}
+                  className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-lg hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading || !rejectionReason.trim()}
+                  onClick={async () => {
+                    if (!rejectionReason.trim()) {
+                      alert('Please specify a rejection reason.');
+                      return;
+                    }
+                    await handleUpdateStatus(rejectingApp._id, 'REJECTED', rejectionReason.trim());
+                    setRejectingApp(null);
+                    if (selectedApp?._id === rejectingApp._id) {
+                      setSelectedApp(null);
+                    }
+                  }}
+                  className={`px-5 py-2 rounded-lg font-bold text-white shadow-sm transition ${
+                    !rejectionReason.trim()
+                      ? 'bg-rose-300 cursor-not-allowed'
+                      : 'bg-rose-600 hover:bg-rose-700'
+                  }`}
+                >
+                  {actionLoading ? 'Processing...' : 'Confirm Rejection & Dispatch Email'}
+                </button>
               </div>
             </div>
           </div>
