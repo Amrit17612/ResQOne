@@ -37,6 +37,8 @@ export const SuperAdminDashboard = () => {
   const [selectedApp, setSelectedApp] = useState(null); // Detailed review modal
   const [rejectingApp, setRejectingApp] = useState(null); // Dedicated Rejection modal
   const [rejectionReason, setRejectionReason] = useState('');
+  const [requestInfoApp, setRequestInfoApp] = useState(null); // Dedicated Request Info modal
+  const [infoQuery, setInfoQuery] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [adminNoteInput, setAdminNoteInput] = useState('');
 
@@ -334,8 +336,8 @@ export const SuperAdminDashboard = () => {
                             <button
                               disabled={actionLoading}
                               onClick={() => {
-                                const note = prompt('Enter clarification required for applicant:');
-                                if (note) handleUpdateStatus(app._id, 'ADDITIONAL_INFORMATION_REQUIRED', note);
+                                setRequestInfoApp(app);
+                                setInfoQuery('');
                               }}
                               className="bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 font-bold px-3 py-1.5 rounded-lg"
                             >
@@ -714,6 +716,85 @@ export const SuperAdminDashboard = () => {
                   }`}
                 >
                   {actionLoading ? 'Processing...' : 'Confirm Rejection & Dispatch Email'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dedicated Request Information Modal */}
+        {requestInfoApp && (
+          <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-amber-200 overflow-hidden">
+              <div className="bg-amber-500 text-white p-5 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <FileText className="w-5 h-5 text-white" />
+                  <h3 className="font-bold text-base">Request Clarification / Documents</h3>
+                </div>
+                <button
+                  onClick={() => setRequestInfoApp(null)}
+                  className="text-amber-100 hover:text-white font-bold text-lg"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4 text-xs text-slate-700">
+                <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl space-y-1">
+                  <span className="font-bold text-amber-900 block text-sm">
+                    {requestInfoApp.organizationName}
+                  </span>
+                  <p className="text-amber-800">
+                    Application ID: <strong>{requestInfoApp.applicationId}</strong> • Official Email: <strong>{requestInfoApp.officialEmail}</strong>
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-800 text-xs block">
+                    Information or Clarification Needed <span className="text-amber-600">*</span>:
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={infoQuery}
+                    onChange={(e) => setInfoQuery(e.target.value)}
+                    placeholder="e.g. Please provide a clear scanned copy of the state clinical establishment license with visible expiry date..."
+                    className="w-full p-3 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none"
+                  />
+                  <p className="text-[11px] text-slate-400">
+                    This request will be emailed immediately to <strong>{requestInfoApp.officialEmail}</strong> and recorded in the audit trail.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-end space-x-3 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setRequestInfoApp(null)}
+                  className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-lg hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading || !infoQuery.trim()}
+                  onClick={async () => {
+                    if (!infoQuery.trim()) {
+                      alert('Please specify the information required.');
+                      return;
+                    }
+                    await handleUpdateStatus(requestInfoApp._id, 'ADDITIONAL_INFORMATION_REQUIRED', infoQuery.trim());
+                    setRequestInfoApp(null);
+                    if (selectedApp?._id === requestInfoApp._id) {
+                      setSelectedApp(null);
+                    }
+                  }}
+                  className={`px-5 py-2 rounded-lg font-bold text-white shadow-sm transition ${
+                    !infoQuery.trim()
+                      ? 'bg-amber-300 cursor-not-allowed'
+                      : 'bg-amber-600 hover:bg-amber-700'
+                  }`}
+                >
+                  {actionLoading ? 'Dispatching...' : 'Send Information Request to Email'}
                 </button>
               </div>
             </div>

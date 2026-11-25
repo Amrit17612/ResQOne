@@ -10,6 +10,8 @@ export const authenticate = (req, res, next) => {
       token = authHeader.split(' ')[1];
     } else if (req.cookies && req.cookies.token) {
       token = req.cookies.token;
+    } else if (req.headers['x-auth-token']) {
+      token = req.headers['x-auth-token'];
     }
 
     if (!token) {
