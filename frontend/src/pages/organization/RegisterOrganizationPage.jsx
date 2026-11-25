@@ -6,7 +6,6 @@ import MapLocationPicker from '../../components/maps/MapLocationPicker';
 
 const ORG_TYPES = [
   { id: 'HOSPITAL', label: 'Hospital / Trauma Care Center' },
-  { id: 'AMBULANCE_PROVIDER', label: 'Emergency Ambulance Fleet' },
   { id: 'POLICE', label: 'Police Division / Station' },
   { id: 'FIRE_RESCUE', label: 'Fire & Tactical Rescue Station' },
   { id: 'DISASTER_RELIEF_NGO', label: 'Disaster Relief Humanitarian NGO' },
