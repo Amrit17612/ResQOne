@@ -233,8 +233,8 @@ export const loginOfficialInitiate = async (req, res) => {
     user.otpAttempts = 0;
     await user.save();
 
-    // Send 2FA Email
-    await sendSecurityEmail({
+    // Send 2FA Email (non-blocking with error catch to prevent request freeze)
+    sendSecurityEmail({
       to: user.email,
       subject: 'ResQOne Security Grid: 2FA Login Verification Code',
       text: `RESQONE SECURITY VERIFICATION\nYour 6-digit login verification code: ${rawOtp}\nValid for 5 minutes. Do not share this code.`,
@@ -248,7 +248,7 @@ export const loginOfficialInitiate = async (req, res) => {
           <p style="font-size: 12px; color: #94a3b8;">This code expires in 5 minutes. If you did not initiate this request, notify the Super Admin immediately.</p>
         </div>
       `
-    });
+    }).catch(err => console.error('[2FA Email Dispatch Failed Non-blocking]', err.message));
 
     return res.status(200).json({
       success: true,
