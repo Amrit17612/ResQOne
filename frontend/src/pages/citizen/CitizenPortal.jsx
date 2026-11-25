@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { NavLink } from 'react-router-dom';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import api from '../../services/api';
 import { getOfflineDrafts, saveOfflineDraft, removeOfflineDraft } from '../../services/offlineSync';
@@ -12,9 +13,10 @@ import {
   Hospital as HospitalIcon,
   Search,
   PhoneCall,
-  Activity
+  Activity,
+  Compass,
+  ArrowRight
 } from 'lucide-react';
-import CitizenLiveTracking from '../../components/citizen/CitizenLiveTracking';
 
 const CATEGORIES = [
   { value: 'ROAD_ACCIDENT', label: 'Road Accident' },
@@ -234,9 +236,20 @@ export const CitizenPortal = () => {
         )}
 
         {message && (
-          <div className="bg-emerald-50 border border-emerald-300 p-4 rounded-xl text-sm font-semibold text-emerald-800 flex items-center space-x-2">
-            <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-            <span>{message}</span>
+          <div className="bg-emerald-50 border border-emerald-300 p-4 rounded-xl text-sm font-semibold text-emerald-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+              <span>{message}</span>
+            </div>
+            {referenceId && (
+              <NavLink
+                to={`/track-incident?ref=${referenceId}`}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition shadow flex-shrink-0"
+              >
+                <Compass className="w-4 h-4 animate-spin-slow" />
+                <span>Open Full-Screen Live Tracking →</span>
+              </NavLink>
+            )}
           </div>
         )}
 
@@ -454,34 +467,50 @@ export const CitizenPortal = () => {
 
           {/* Right Column: Track Report & Offline Queue */}
           <div className="lg:col-span-5 space-y-6">
-            {/* Real-time Tracking Box */}
+            {/* Real-time Tracking Box (Navigates to Full Page) */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-              <div className="flex items-center space-x-2 mb-4 pb-3 border-b border-slate-100">
-                <Search className="w-5 h-5 text-resq-blue" />
-                <h2 className="text-base font-bold text-slate-800">Track Emergency Report</h2>
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <Compass className="w-5 h-5 text-resq-blue animate-spin-slow" />
+                  <h2 className="text-base font-bold text-slate-800">Track Emergency Report</h2>
+                </div>
+                <NavLink
+                  to="/track-incident"
+                  className="text-xs font-bold text-resq-blue hover:underline flex items-center gap-1"
+                >
+                  <span>Full Screen Map</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </NavLink>
               </div>
 
-              <form onSubmit={handleTrack} className="flex space-x-2">
+              <p className="text-xs text-slate-500 mb-3">
+                Track your active emergency alert in real-time with full telemetry, dispatched emergency units, and live GPS map radar.
+              </p>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (trackInput.trim()) {
+                    window.location.href = `/track-incident?ref=${encodeURIComponent(trackInput.trim().toUpperCase())}`;
+                  }
+                }}
+                className="flex space-x-2"
+              >
                 <input
                   type="text"
-                  placeholder="Enter Reference ID (e.g. RESQ-20261104-0001)"
+                  placeholder="Enter Reference ID (e.g. RESQ-20261125-0001)"
                   value={trackInput}
-                  onChange={(e) => setTrackInput(e.target.value)}
-                  className="flex-1 text-xs border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-resq-blue outline-none"
+                  onChange={(e) => setTrackInput(e.target.value.toUpperCase())}
+                  className="flex-1 text-xs font-mono font-bold border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-resq-blue outline-none"
                 />
                 <button
                   type="submit"
-                  className="bg-resq-blue text-white px-4 text-xs font-semibold rounded-lg hover:bg-blue-700 transition"
+                  className="bg-resq-blue hover:bg-blue-600 text-white px-4 text-xs font-semibold rounded-lg transition shadow-sm flex items-center space-x-1"
                 >
-                  Track
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Track Full Page</span>
                 </button>
               </form>
-
-              {trackedIncident && (
-                <div className="mt-4">
-                  <CitizenLiveTracking incident={trackedIncident} />
-                </div>
-              )}
             </div>
 
             {/* Offline Drafts Queue */}

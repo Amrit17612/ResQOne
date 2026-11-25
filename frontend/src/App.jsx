@@ -19,6 +19,7 @@ import { ActivateStaffPage } from './pages/organization/ActivateStaffPage';
 
 // Dashboards (Role-Isolated)
 import { CitizenPortal } from './pages/citizen/CitizenPortal';
+import { LiveIncidentTrackingPage } from './pages/citizen/LiveIncidentTrackingPage';
 import { CentralAdminDashboard } from './pages/admin/CentralAdminDashboard';
 import { SuperAdminDashboard } from './pages/superadmin/SuperAdminDashboard';
 
@@ -97,6 +98,7 @@ export default function App() {
 
           {/* 7. Public Citizen Emergency Portal */}
           <Route path="/citizen" element={<CitizenPortal />} />
+          <Route path="/track-incident" element={<LiveIncidentTrackingPage />} />
 
           {/* 8. Central Admin & Super Admin Commands */}
           <Route

@@ -16,11 +16,13 @@ import {
   User,
   Activity,
   Menu,
-  X
+  X,
+  Compass
 } from 'lucide-react';
 
 const navItems = [
   { name: 'Citizen Portal', path: '/citizen', icon: AlertTriangle, roles: ['CITIZEN', 'SUPER_ADMIN'] },
+  { name: 'Live Tracking', path: '/track-incident', icon: Compass, roles: ['CITIZEN', 'SUPER_ADMIN'] },
   { name: 'Central Admin', path: '/admin', icon: ShieldAlert, roles: ['CENTRAL_ADMIN', 'SUPER_ADMIN'] },
   { name: 'Police Command', path: '/police', icon: Shield, roles: ['POLICE_DISPATCHER', 'SUPER_ADMIN'] },
   { name: 'Fire & Rescue', path: '/fire', icon: Flame, roles: ['FIRE_COMMANDER', 'SUPER_ADMIN'] },
