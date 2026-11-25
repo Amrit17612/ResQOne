@@ -97,8 +97,9 @@ export default function MapLocationPicker({
     setIsSearching(true);
     setErrorMessage('');
     try {
+      // Freeform Nominatim query across India & world
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`,
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1`,
         { headers: { 'Accept-Language': 'en' } }
       );
       const results = await res.json();
@@ -112,10 +113,10 @@ export default function MapLocationPicker({
         setAccuracy(null);
         setIsConfirmed(false);
       } else {
-        setErrorMessage('Location not found. Try searching with a landmark, area or pincode.');
+        setErrorMessage('Location not found. Please type City name or Pincode (e.g. Patna, Lucknow, Mumbai, 800001) or click on the map directly.');
       }
     } catch (err) {
-      setErrorMessage('Failed to search address. Please try dragging the pin directly.');
+      setErrorMessage('Search service busy. You can directly click or drag the red pin anywhere on the map.');
     } finally {
       setIsSearching(false);
     }

@@ -45,6 +45,11 @@ export const RegisterOrganizationPage = () => {
   };
 
   const handleLocationConfirmed = (locData) => {
+    // Attempt parsing city / state from address string if available
+    const parts = (locData.formattedAddress || '').split(',').map(s => s.trim());
+    const guessedCity = parts.length >= 3 ? parts[parts.length - 3] : prev => prev.city;
+    const guessedState = parts.length >= 2 ? parts[parts.length - 2] : prev => prev.state;
+
     setFormData((prev) => ({
       ...prev,
       latitude: locData.latitude,
@@ -53,7 +58,9 @@ export const RegisterOrganizationPage = () => {
       locationSource: locData.locationSource,
       locationAccuracy: locData.locationAccuracy,
       locationConfirmedByUser: true,
-      address: locData.formattedAddress || prev.address
+      address: locData.formattedAddress || prev.address,
+      city: typeof guessedCity === 'string' && guessedCity ? guessedCity : prev.city,
+      state: typeof guessedState === 'string' && guessedState ? guessedState : prev.state
     }));
   };
 
