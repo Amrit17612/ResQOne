@@ -315,11 +315,24 @@ export const getOrganizationApplications = async (req, res) => {
 
 export const updateApplicationStatus = async (req, res) => {
   try {
-    const { status, note, adminNotes } = req.body;
+    let { status, note, adminNotes } = req.body;
     const application = await OrganizationApplication.findById(req.params.id);
 
     if (!application) {
       return res.status(404).json({ success: false, message: 'Application not found' });
+    }
+
+    // Map any legacy or UI status aliases to valid OrganizationApplicationStatus
+    const statusMap = {
+      'UNDER_VERIFICATION': OrganizationApplicationStatus.UNDER_INITIAL_REVIEW,
+      'DOCUMENTS_VERIFIED': OrganizationApplicationStatus.DOCUMENT_VERIFIED,
+      'ADDITIONAL_INFO_REQUIRED': OrganizationApplicationStatus.ADDITIONAL_INFORMATION_REQUIRED,
+      'APPROVED': OrganizationApplicationStatus.APPROVED,
+      'REJECTED': OrganizationApplicationStatus.REJECTED
+    };
+
+    if (statusMap[status]) {
+      status = statusMap[status];
     }
 
     application.status = status;

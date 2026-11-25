@@ -206,35 +206,35 @@ export const SuperAdminDashboard = () => {
 
                     {/* Super Admin Action Controls */}
                     <div className="pt-2 flex flex-wrap gap-2 text-xs">
-                      {app.status === 'APPLICATION_SUBMITTED' && (
+                      {(app.status === 'APPLICATION_SUBMITTED' || app.status === 'UNDER_INITIAL_REVIEW') && (
                         <button
-                          onClick={() => handleUpdateStatus(app._id, 'UNDER_VERIFICATION', 'Verifying license with authorities')}
+                          onClick={() => handleUpdateStatus(app._id, 'DOCUMENT_VERIFIED', 'Official registration documents and license verified')}
                           className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg"
                         >
-                          Begin Document Verification
+                          Verify Documents & License
                         </button>
                       )}
 
-                      {app.status === 'UNDER_VERIFICATION' && (
+                      {(app.status === 'DOCUMENT_VERIFIED' || app.status === 'UNDER_VERIFICATION' || app.status === 'DOCUMENTS_VERIFIED') && (
                         <>
                           <button
-                            onClick={() => handleUpdateStatus(app._id, 'DOCUMENTS_VERIFIED', 'Official registration documents verified')}
-                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg"
+                            onClick={() => handleUpdateStatus(app._id, 'APPROVED', 'Organization meets all emergency response criteria')}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg"
                           >
-                            Mark Documents Verified
+                            Approve Application
                           </button>
                           <button
-                            onClick={() => handleUpdateStatus(app._id, 'ADDITIONAL_INFO_REQUIRED', 'License copy missing municipal seal')}
+                            onClick={() => handleUpdateStatus(app._id, 'ADDITIONAL_INFORMATION_REQUIRED', 'License copy requires clarification')}
                             className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg"
                           >
-                            Request Additional Info
+                            Request Info
                           </button>
                         </>
                       )}
 
-                      {(app.status === 'DOCUMENTS_VERIFIED' || app.status === 'ADDITIONAL_INFO_REQUIRED') && (
+                      {app.status === 'ADDITIONAL_INFORMATION_REQUIRED' && (
                         <button
-                          onClick={() => handleUpdateStatus(app._id, 'APPROVED', 'Organization meets all emergency criteria')}
+                          onClick={() => handleUpdateStatus(app._id, 'APPROVED', 'Clarification provided and accepted')}
                           className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg"
                         >
                           Approve Application
@@ -248,6 +248,18 @@ export const SuperAdminDashboard = () => {
                         >
                           <Key className="w-3.5 h-3.5" />
                           <span>Generate Secure Activation Link</span>
+                        </button>
+                      )}
+
+                      {app.status !== 'APPROVED' && app.status !== 'REJECTED' && app.status !== 'ACTIVATION_PENDING' && (
+                        <button
+                          onClick={() => handleUpdateStatus(app._id, 'REJECTED', 'Application criteria not met')}
+                          className="text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg font-medium"
+                        >
+                          Reject
+                        </button>
+                      )}
+                    </div>
                         </button>
                       )}
 
