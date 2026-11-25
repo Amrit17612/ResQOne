@@ -233,6 +233,8 @@ export const loginOfficialInitiate = async (req, res) => {
     user.otpAttempts = 0;
     await user.save();
 
+    console.log(`[ResQOne Security Grid] 2FA OTP generated for ${user.email}: [ ${rawOtp} ]`);
+
     // Send 2FA Email (non-blocking with error catch to prevent request freeze)
     sendSecurityEmail({
       to: user.email,
