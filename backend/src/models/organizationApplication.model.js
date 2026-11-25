@@ -54,10 +54,10 @@ const OrganizationApplicationSchema = new mongoose.Schema(
 
     // Physical Location Details
     address: { type: String, required: true },
-    state: { type: String, default: 'Delhi' },
-    district: { type: String, default: 'Central Delhi' },
-    city: { type: String, default: 'New Delhi' },
-    postalCode: { type: String, default: '110001' },
+    state: { type: String, trim: true },
+    district: { type: String, trim: true },
+    city: { type: String, trim: true },
+    postalCode: { type: String, trim: true },
 
     // GeoJSON Location (longitude, latitude) with 2dsphere index
     location: {

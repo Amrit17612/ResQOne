@@ -63,10 +63,10 @@ export const submitOrganizationApplication = async (req, res) => {
       officialEmail,
       contactNumber,
       address,
-      state: state || 'Delhi',
-      district: district || 'New Delhi',
-      city: city || 'New Delhi',
-      postalCode: postalCode || '110001',
+      state: state || '',
+      district: district || '',
+      city: city || '',
+      postalCode: postalCode || '',
       location: {
         type: 'Point',
         coordinates: [lngNum, latNum], // GeoJSON longitude-first order
