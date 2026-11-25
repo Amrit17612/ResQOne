@@ -102,10 +102,31 @@ export const getIncidents = async (req, res) => {
     if (category) filter.category = category;
     if (department) filter.assignedDepartments = department;
 
+    // Filter strictly for Department Users: Unverified incidents must never reach department dashboards
+    if (
+      req.user &&
+      req.user.role !== UserRole.SUPER_ADMIN &&
+      req.user.role !== UserRole.CENTRAL_ADMIN &&
+      req.user.role !== UserRole.CITIZEN
+    ) {
+      filter.status = { $in: [IncidentStatus.VERIFIED, IncidentStatus.ASSIGNED, IncidentStatus.DISPATCHED, IncidentStatus.TEAM_ON_THE_WAY, IncidentStatus.ON_SCENE, IncidentStatus.ASSISTANCE_IN_PROGRESS, IncidentStatus.RESOLVED, IncidentStatus.CLOSED] };
+    }
+
     if (req.user?.role === UserRole.POLICE_DISPATCHER) {
       filter.$or = [{ assignedDepartments: 'POLICE' }, { category: 'CRIME' }, { category: 'ROAD_ACCIDENT' }];
     } else if (req.user?.role === UserRole.FIRE_COMMANDER) {
       filter.$or = [{ assignedDepartments: 'FIRE_RESCUE' }, { category: 'FIRE' }, { category: 'BUILDING_COLLAPSE' }];
+    } else if (
+      req.user?.role === UserRole.HOSPITAL_COORDINATOR ||
+      req.user?.role === UserRole.HOSPITAL_ADMIN ||
+      req.user?.role === UserRole.DOCTOR
+    ) {
+      filter.$or = [
+        { assignedDepartments: 'HOSPITAL' },
+        { assignedDepartments: 'AMBULANCE' },
+        { category: 'ROAD_ACCIDENT' },
+        { category: 'MEDICAL_EMERGENCY' }
+      ];
     } else if (req.user?.role === UserRole.CITIZEN) {
       filter.reporterId = req.user.userId;
     }
@@ -195,6 +216,9 @@ export const verifyIncident = async (req, res) => {
       const io = getIO();
       incident.assignedDepartments.forEach((dept) => {
         io.to(`dept:${dept.toLowerCase()}`).emit('incident:assigned', incident);
+        if (dept === 'HOSPITAL') {
+          io.to('dept:hospital').emit('incident:assigned', incident);
+        }
       });
       io.emit('incident:updated', incident);
     } catch (e) {}

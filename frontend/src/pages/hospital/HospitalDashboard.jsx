@@ -304,6 +304,18 @@ export const HospitalDashboard = () => {
             ) : (
               <>
                 <button
+                  onClick={() => setActiveTab('incidents')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
+                    activeTab === 'incidents'
+                      ? 'bg-teal-600 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <Activity className="w-3.5 h-3.5" />
+                  <span>Verified Incidents ({allIncidents.filter(i => i.status !== 'REJECTED' && i.status !== 'CLOSED').length})</span>
+                </button>
+
+                <button
                   onClick={() => setActiveTab('ambulances')}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
                     activeTab === 'ambulances'
@@ -558,6 +570,102 @@ export const HospitalDashboard = () => {
                 </div>
               )}
             </div>
+          </div>
+        ) : activeTab === 'incidents' ? (
+          /* Verified Incidents Alerted to this Hospital */
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <Activity className="w-5 h-5 text-teal-600" />
+                <h3 className="font-bold text-base text-slate-800">
+                  Verified Emergency Incidents Alerted to {selectedHospital?.name || 'Hospital'}
+                </h3>
+              </div>
+              <span className="text-xs bg-teal-50 text-teal-800 font-bold px-3 py-1 rounded-full border border-teal-200">
+                Live Alert Feed
+              </span>
+            </div>
+
+            {allIncidents.filter(i => i.status !== 'REJECTED').length === 0 ? (
+              <div className="text-center py-12 text-slate-400 text-xs">
+                No active verified incidents routed to this hospital currently.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {allIncidents.filter(i => i.status !== 'REJECTED').map((inc) => (
+                  <div key={inc._id} className="py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-xs">
+                    <div className="space-y-1.5 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                          {inc.referenceId || inc._id.slice(-6).toUpperCase()}
+                        </span>
+                        <span className="font-bold text-slate-900 text-sm">{inc.title}</span>
+                        <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded">
+                          {inc.category}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          inc.priority === 'CRITICAL' ? 'bg-red-100 text-red-800 font-black' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {inc.priority} PRIORITY
+                        </span>
+                      </div>
+                      <p className="text-slate-600 font-medium">
+                        📍 {inc.address || 'GPS Location confirmed'}
+                      </p>
+                      <p className="text-slate-500 text-[11px]">
+                        Reporter: <strong>{inc.reporterName}</strong> ({inc.reporterPhone}) • Description: {inc.description}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center space-x-3 flex-shrink-0">
+                      {hospitalAmbulances.filter(a => a.status === 'AVAILABLE').length > 0 ? (
+                        <div className="flex items-center space-x-2">
+                          <select
+                            id={`dispatch-select-${inc._id}`}
+                            className="text-xs border border-slate-300 rounded-lg p-2 bg-slate-50 focus:ring-2 focus:ring-teal-500 outline-none"
+                          >
+                            {hospitalAmbulances
+                              .filter(a => a.status === 'AVAILABLE')
+                              .map(amb => (
+                                <option key={amb._id} value={amb._id}>
+                                  🚑 {amb.vehicleNumber} ({amb.driverName})
+                                </option>
+                              ))}
+                          </select>
+                          <button
+                            onClick={async () => {
+                              const selectEl = document.getElementById(`dispatch-select-${inc._id}`);
+                              const ambId = selectEl ? selectEl.value : null;
+                              if (!ambId) return;
+                              try {
+                                const { data } = await api.post('/ambulances/hospital/dispatch', {
+                                  ambulanceId: ambId,
+                                  incidentId: inc._id
+                                });
+                                if (data.success) {
+                                  alert(`Hospital Ambulance dispatched to Incident ${inc.referenceId}!`);
+                                  fetchData();
+                                }
+                              } catch (err) {
+                                alert(err.response?.data?.message || 'Error dispatching ambulance');
+                              }
+                            }}
+                            className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-3 py-2 rounded-lg text-xs transition shadow-sm flex items-center space-x-1"
+                          >
+                            <Truck className="w-3.5 h-3.5" />
+                            <span>Dispatch Ambulance</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-amber-600 font-semibold bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+                          All Hospital Ambulances Busy / Deployed
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : activeTab === 'ambulances' ? (
           /* Hospital Ambulance Fleet & Drivers Management Tab */

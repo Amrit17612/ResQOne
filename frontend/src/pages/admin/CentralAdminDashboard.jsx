@@ -22,7 +22,7 @@ import DispatchUnitModal from '../../components/dispatch/DispatchUnitModal';
 const DEPARTMENTS = [
   { id: 'POLICE', label: 'Police', color: 'bg-indigo-100 text-indigo-800' },
   { id: 'FIRE_RESCUE', label: 'Fire & Rescue', color: 'bg-red-100 text-red-800' },
-  { id: 'AMBULANCE', label: 'Ambulance EMS', color: 'bg-amber-100 text-amber-800' },
+  { id: 'HOSPITAL', label: 'Hospital', color: 'bg-teal-100 text-teal-800' },
   { id: 'DISASTER_MANAGEMENT', label: 'Disaster Hub', color: 'bg-purple-100 text-purple-800' }
 ];
 
@@ -430,21 +430,20 @@ export const CentralAdminDashboard = () => {
 
                   {/* Dispatch Verification Actions */}
                   <div className="pt-4 border-t border-slate-200 mt-auto flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-                    <button
-                      onClick={() => handleVerify('VERIFIED')}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition text-xs flex items-center justify-center space-x-2 cursor-pointer"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Verify & Alert Agencies</span>
-                    </button>
-
-                    <button
-                      onClick={() => setDispatchModalIncident(selectedIncident)}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition text-xs flex items-center justify-center space-x-1 cursor-pointer"
-                    >
-                      <Truck className="w-4 h-4" />
-                      <span>Dispatch Unit</span>
-                    </button>
+                    {selectedIncident.status === 'PENDING_VERIFICATION' || selectedIncident.status === 'SUBMITTED' ? (
+                      <button
+                        onClick={() => handleVerify('VERIFIED')}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition text-xs flex items-center justify-center space-x-2 cursor-pointer"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Verify & Alert Agencies</span>
+                      </button>
+                    ) : (
+                      <div className="flex-1 bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center space-x-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-600" />
+                        <span>Verified & Agencies Alerted ({selectedIncident.assignedDepartments?.join(', ') || 'Assigned'})</span>
+                      </div>
+                    )}
 
                     {selectedIncident.status !== 'CLOSED' ? (
                       <button
@@ -464,19 +463,21 @@ export const CentralAdminDashboard = () => {
                       </span>
                     )}
 
-                    <button
-                      onClick={() => {
-                        const reason = prompt('Please enter reason for rejecting this report:');
-                        if (reason) {
-                          setRejectionReason(reason);
-                          handleVerify('REJECTED');
-                        }
-                      }}
-                      className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold py-3 px-4 rounded-xl transition text-xs flex items-center justify-center space-x-1 cursor-pointer"
-                    >
-                      <XCircle className="w-4 h-4" />
-                      <span>Reject</span>
-                    </button>
+                    {selectedIncident.status !== 'CLOSED' && selectedIncident.status !== 'REJECTED' && (
+                      <button
+                        onClick={() => {
+                          const reason = prompt('Please enter reason for rejecting this report:');
+                          if (reason) {
+                            setRejectionReason(reason);
+                            handleVerify('REJECTED');
+                          }
+                        }}
+                        className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold py-3 px-4 rounded-xl transition text-xs flex items-center justify-center space-x-1 cursor-pointer"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span>Reject</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (
