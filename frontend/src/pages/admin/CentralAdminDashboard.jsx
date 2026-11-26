@@ -14,7 +14,8 @@ import {
   Send,
   Users,
   MapPin,
-  Map as MapIcon
+  Map as MapIcon,
+  Trash2
 } from 'lucide-react';
 import CentralOperationsMap from '../../components/maps/CentralOperationsMap';
 import DispatchUnitModal from '../../components/dispatch/DispatchUnitModal';
@@ -139,6 +140,29 @@ export const CentralAdminDashboard = () => {
       }
     } catch (e) {
       alert('Error updating incident status');
+    }
+  };
+
+  const handleDeleteIncident = async (incidentToDelete) => {
+    const inc = incidentToDelete || selectedIncident;
+    if (!inc) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to PERMANENTLY DELETE incident ${inc.referenceId || inc.title}?\n\nThis will remove it from the Central Feed, clear related dispatches, and delete all records.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const { data } = await api.delete(`/incidents/${inc._id}`);
+      if (data.success) {
+        alert(data.message || `Incident ${inc.referenceId} deleted.`);
+        setIncidents((prev) => prev.filter((i) => i._id !== inc._id));
+        if (selectedIncident?._id === inc._id) {
+          setSelectedIncident(null);
+        }
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error deleting incident.');
     }
   };
 
@@ -345,10 +369,18 @@ export const CentralAdminDashboard = () => {
                         {selectedIncident.location?.coordinates?.[0]?.toFixed(4)})
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end gap-2">
                       <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
                         {selectedIncident.status}
                       </span>
+                      <button
+                        onClick={() => handleDeleteIncident(selectedIncident)}
+                        className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition"
+                        title="Delete this incident permanently"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Incident</span>
+                      </button>
                     </div>
                   </div>
 
@@ -478,6 +510,15 @@ export const CentralAdminDashboard = () => {
                         <span>Reject</span>
                       </button>
                     )}
+
+                    <button
+                      onClick={() => handleDeleteIncident(selectedIncident)}
+                      className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition text-xs flex items-center justify-center space-x-1 cursor-pointer shadow-md"
+                      title="Permanently remove incident and purge records"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete</span>
+                    </button>
                   </div>
                 </div>
               ) : (

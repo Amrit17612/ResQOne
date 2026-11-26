@@ -390,3 +390,52 @@ export const closeIncident = async (req, res) => {
   }
 };
 
+/**
+ * Delete Incident (Central Admin / Super Admin)
+ */
+export const deleteIncident = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const incident = await Incident.findById(id);
+
+    if (!incident) {
+      return res.status(404).json({ success: false, message: 'Incident not found' });
+    }
+
+    await Incident.findByIdAndDelete(id);
+
+    // Clean up related ambulances that were assigned
+    try {
+      const { Ambulance } = await import('../models/ambulance.model.js');
+      await Ambulance.updateMany(
+        { activeIncidentId: id },
+        { $set: { status: 'AVAILABLE', activeIncidentId: null } }
+      );
+    } catch (e) {}
+
+    await AuditLog.create({
+      actorId: req.user.userId,
+      actorName: req.user.name,
+      actorRole: req.user.role,
+      action: 'INCIDENT_DELETED',
+      resource: 'Incident',
+      resourceId: id,
+      details: { referenceId: incident.referenceId, title: incident.title }
+    });
+
+    try {
+      const io = getIO();
+      io.to('dept:central_admin').emit('incident:deleted', { incidentId: id });
+      io.emit('incident:removed', { incidentId: id });
+    } catch (e) {}
+
+    return res.status(200).json({
+      success: true,
+      message: `Incident ${incident.referenceId} permanently deleted.`
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+

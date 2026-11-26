@@ -6,7 +6,8 @@ import {
   getIncidentByReference,
   verifyIncident,
   updateIncidentStatus,
-  closeIncident
+  closeIncident,
+  deleteIncident
 } from '../controllers/incident.controller.js';
 import { authenticate, authorize } from '../middleware/auth.middleware.js';
 import { validateBody } from '../middleware/validate.js';
@@ -52,6 +53,14 @@ router.post(
   authenticate,
   authorize([UserRole.CENTRAL_ADMIN, UserRole.SUPER_ADMIN]),
   closeIncident
+);
+
+// Delete Incident (Central Admin & Super Admin)
+router.delete(
+  '/:id',
+  authenticate,
+  authorize([UserRole.CENTRAL_ADMIN, UserRole.SUPER_ADMIN]),
+  deleteIncident
 );
 
 export default router;
