@@ -369,13 +369,21 @@ export const CentralAdminDashboard = () => {
                         {selectedIncident.location?.coordinates?.[0]?.toFixed(4)})
                       </p>
                     </div>
-                    <div className="text-right flex flex-col items-end gap-2">
-                      <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+                    <div className="text-right flex items-center space-x-2">
+                      <span
+                        className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
+                          selectedIncident.status === 'REJECTED'
+                            ? 'bg-red-100 text-red-800'
+                            : selectedIncident.status === 'VERIFIED'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}
+                      >
                         {selectedIncident.status}
                       </span>
                       <button
                         onClick={() => handleDeleteIncident(selectedIncident)}
-                        className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition"
+                        className="inline-flex items-center space-x-1 px-3 py-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow transition cursor-pointer"
                         title="Delete this incident permanently"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
